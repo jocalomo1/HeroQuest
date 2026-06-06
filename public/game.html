@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeroQuest - Partida</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/board.css">
+</head>
+<body class="pantalla-juego">
+
+  <!-- BARRA SUPERIOR -->
+  <header id="barra-superior">
+    <div class="mision-titulo" id="titulo-mision">Misión 1: La Prueba</div>
+    <div class="turno-info" id="info-turno">Turno de: —</div>
+    <div class="sala-info">Sala: <span id="codigo-sala-juego"></span></div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <div id="contenedor-juego">
+
+    <!-- PANEL IZQUIERDO: Héroes -->
+    <aside id="panel-heroes">
+      <h3>Héroes</h3>
+      <div id="lista-heroes"></div>
+    </aside>
+
+    <!-- TABLERO CENTRAL -->
+    <main id="area-tablero">
+      <canvas id="tablero-canvas"></canvas>
+      <div id="overlay-tablero"></div>
+    </main>
+
+    <!-- PANEL DERECHO: Acciones e inventario -->
+    <aside id="panel-acciones">
+
+      <!-- Mi héroe (solo para héroes) -->
+      <div id="mi-heroe-panel" class="oculto">
+        <h3 id="mi-heroe-nombre">Mi Héroe</h3>
+        <div class="stats-heroe">
+          <div class="stat-row">
+            <span>PC:</span>
+            <div class="barra-stat" id="barra-pc"></div>
+            <span id="pc-texto">8/8</span>
+          </div>
+          <div class="stat-row">
+            <span>PM:</span>
+            <div class="barra-stat" id="barra-pm"></div>
+            <span id="pm-texto">6/6</span>
+          </div>
+          <div class="stat-row oro-row">
+            <span>🪙 Oro:</span>
+            <span id="oro-texto">0</span>
+          </div>
+        </div>
+
+        <!-- Inventario -->
+        <div class="inventario-seccion">
+          <h4>Inventario</h4>
+          <div id="lista-inventario"></div>
+        </div>
+
+        <!-- Hechizos -->
+        <div class="hechizos-seccion" id="hechizos-seccion">
+          <h4>Hechizos</h4>
+          <div id="lista-hechizos"></div>
+        </div>
+      </div>
+
+      <!-- Panel Zargon -->
+      <div id="zargon-panel" class="oculto">
+        <h3>Panel de Zargon</h3>
+        <div class="zargon-seccion">
+          <h4>Monstruos Activos</h4>
+          <div id="lista-monstruos-zargon"></div>
+        </div>
+        <div class="zargon-seccion">
+          <h4>Hechizos de Terror</h4>
+          <div id="lista-hechizos-zargon"></div>
+        </div>
+      </div>
+
+      <!-- Acciones del turno -->
+      <div id="acciones-turno" class="oculto">
+        <h4>Acciones</h4>
+        <div class="botones-accion">
+          <button id="btn-mover" class="btn-accion" title="Tirar dados y mover">
+            🚶 Mover
+          </button>
+          <button id="btn-buscar-tesoros" class="btn-accion" title="Buscar tesoros en habitación sin monstruos">
+            🔍 Buscar Tesoros
+          </button>
+          <button id="btn-buscar-trampas" class="btn-accion" title="Buscar trampas sin monstruos visibles">
+            🕵️ Buscar Trampas
+          </button>
+          <button id="btn-terminar-turno" class="btn-accion btn-terminar">
+            ✅ Terminar Turno
+          </button>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- LOG DE JUEGO -->
+  <div id="log-juego">
+    <div id="mensajes-log"></div>
+  </div>
+
+  <!-- MODAL DE DADOS -->
+  <div id="modal-dados" class="modal oculto">
+    <div class="modal-contenido">
+      <h3 id="modal-titulo">Resultado de dados</h3>
+      <div id="dados-resultado"></div>
+      <p id="modal-descripcion"></p>
+      <button id="modal-cerrar" class="btn-primario">Aceptar</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE CARTA TESORO -->
+  <div id="modal-carta" class="modal oculto">
+    <div class="modal-contenido carta-modal">
+      <div id="carta-icono" class="carta-icono"></div>
+      <h3 id="carta-titulo"></h3>
+      <p id="carta-descripcion"></p>
+      <button id="carta-cerrar" class="btn-primario">Aceptar</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE VICTORIA/DERROTA -->
+  <div id="modal-fin-mision" class="modal oculto">
+    <div class="modal-contenido">
+      <h2 id="fin-titulo"></h2>
+      <p id="fin-descripcion"></p>
+      <div id="fin-recompensas"></div>
+      <button id="fin-continuar" class="btn-primario">Continuar</button>
+    </div>
+  </div>
+
+  <!-- MODAL ENTRE MISIONES (Armería) -->
+  <div id="modal-armeria" class="modal oculto">
+    <div class="modal-contenido armeria-modal">
+      <h2>⚔️ Armería del Reino</h2>
+      <p>Oro disponible: <span id="oro-armeria">0</span> 🪙</p>
+      <div id="tienda-items"></div>
+      <button id="armeria-cerrar" class="btn-primario">Salir de la Armería</button>
+    </div>
+  </div>
+
+  <!-- INDICADOR TURNO ACTUAL -->
+  <div id="tu-turno-banner" class="oculto">
+    <span>¡ES TU TURNO!</span>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

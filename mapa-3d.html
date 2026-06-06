@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>HeroQuest 3D</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; }
+    canvas { display: block; }
+    #titulo {
+      position: absolute; top: 14px; left: 50%;
+      transform: translateX(-50%);
+      color: #d4b86a; font-family: Georgia, serif;
+      font-size: 16px; letter-spacing: 4px;
+      text-shadow: 0 0 12px #8B6914;
+      pointer-events: none; white-space: nowrap;
+    }
+    #ayuda {
+      position: absolute; bottom: 12px; left: 50%;
+      transform: translateX(-50%);
+      color: #5a4a30; font-family: Georgia, serif;
+      font-size: 11px; text-align: center; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="titulo">⚔ MAPA HEROQUEST 3D ⚔</div>
+  <div id="ayuda">Click izquierdo: rotar &nbsp;·&nbsp; Rueda: zoom &nbsp;·&nbsp; Click derecho: mover</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── Escena ──────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0a05);
+scene.fog = new THREE.FogExp2(0x0d0a05, 0.022);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(0, 22, 16);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 55;
+controls.maxPolarAngle = Math.PI / 2.1;
+controls.target.set(0, 0, 0);
+
+// ── Luces ───────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x3d2f1a, 1.4));
+
+const sol = new THREE.DirectionalLight(0xffe0a0, 1.6);
+sol.position.set(8, 18, 10);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+sol.shadow.camera.near = 0.5;
+sol.shadow.camera.far = 60;
+sol.shadow.camera.left = -20;
+sol.shadow.camera.right = 20;
+sol.shadow.camera.top = 15;
+sol.shadow.camera.bottom = -15;
+scene.add(sol);
+
+const antorcha = new THREE.PointLight(0xff7700, 1.2, 28);
+antorcha.position.set(0, 6, 0);
+scene.add(antorcha);
+
+// ── Datos del tablero ────────────────────────────────────
+const COLS = 26, ROWS = 19;
+const S = 1;        // tamaño de cada celda (unidades)
+const GAP = 0.05;   // espacio entre celdas
+const H_COR = 0.12; // altura pasillo
+const H_SAL = 0.38; // altura sala
+const H_MUR = 1.1;  // altura muro
+
+const COLOR_SALA = {
+  s1:0x7a5c18, s2:0x9e2020, s3:0x3f8880, s4:0xb35218, s5:0x90aaaa,
+  s6:0xb89848, s7:0x565e56, s8:0x6a9e2a, s9:0x2e2b28, s10:0xa88818,
+  s11:0x889228, s12:0xb8a818, s13:0x306878, s14:0x607080, s15:0xa89038,
+  s16:0x684078, s17:0x801a1a, s18:0xa88018, s19:0x986068, s20:0x489828,
+  s21:0x4a5898, s22:0x2c2420
+};
+
+const LABEL_SALA = {
+  s1:'S1', s2:'S2', s3:'S3', s4:'S4', s5:'S5',
+  s6:'S6', s7:'S7', s8:'S8', s9:'S9', s10:'S10',
+  s11:'S11', s12:'S12', s13:'S13', s14:'S14', s15:'S15',
+  s16:'S16', s17:'S17', s18:'S18', s19:'S19', s20:'S20',
+  s21:'S21', s22:'S22 CENTRAL'
+};
+
+const roomsDef = [
+  [1,3,  1,4,  's1'], [1,3,  5,8,  's2'], [1,5,  9,11, 's3'],
+  [4,8,  1,4,  's4'], [4,8,  5,8,  's5'],
+  [1,5, 14,16, 's6'], [1,4, 17,20, 's7'], [1,4, 21,24, 's8'],
+  [5,8, 17,20, 's9'], [5,8, 21,24, 's10'],
+  [7,11,10,15, 's22'],
+  [10,13, 1,4, 's11'], [10,12, 5,6, 's13'], [10,12, 7,8,  's14'],
+  [14,17, 1,4, 's12'], [13,17, 5,8, 's15'], [13,17, 9,11, 's16'],
+  [10,12,17,20,'s19'], [13,13,18,20,'s19'],
+  [13,17,14,17,'s17'], [14,17,18,20,'s18'],
+  [10,13,21,24,'s20'], [14,17,21,24,'s21'],
+];
+
+// ── Construir grid ────────────────────────────────────────
+const grid = Array.from({length:ROWS}, () => Array(COLS).fill('corridor'));
+for (const [rs,re,cs,ce,cls] of roomsDef)
+  for (let r=rs; r<=re; r++)
+    for (let c=cs; c<=ce; c++)
+      if (r>=0&&r<ROWS&&c>=0&&c<COLS) grid[r][c] = cls;
+
+// ── Cache de materiales ───────────────────────────────────
+const matCache = new Map();
+const getMat = (hex, emissiveHex=0x000000) => {
+  const k = `${hex}_${emissiveHex}`;
+  if (!matCache.has(k))
+    matCache.set(k, new THREE.MeshLambertMaterial({
+      color: hex, emissive: emissiveHex, emissiveIntensity: 0.08
+    }));
+  return matCache.get(k);
+};
+
+const matMuro  = getMat(0x1a1410, 0x000000);
+const matCor   = getMat(0xc8b878, 0x201810);
+
+const offX = -(COLS * S) / 2 + S / 2;
+const offZ = -(ROWS * S) / 2 + S / 2;
+
+// ── Suelo ─────────────────────────────────────────────────
+for (let r=0; r<ROWS; r++) {
+  for (let c=0; c<COLS; c++) {
+    const tipo = grid[r][c];
+    const esSala = tipo !== 'corridor';
+    const h = esSala ? H_SAL : H_COR;
+    const mat = esSala ? getMat(COLOR_SALA[tipo], 0x060402) : matCor;
+
+    const geo = new THREE.BoxGeometry(S-GAP, h, S-GAP);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(c*S + offX, h/2, r*S + offZ);
+    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    scene.add(mesh);
+  }
+}
+
+// ── Bardas: muro en cada borde donde la celda cambia de sala ─
+const dirs = [[-1,0,'N'],[1,0,'S'],[0,-1,'W'],[0,1,'E']];
+for (let r=0; r<ROWS; r++) {
+  for (let c=0; c<COLS; c++) {
+    const tipo = grid[r][c];
+    if (tipo === 'corridor') continue;
+    for (const [dr,dc,dir] of dirs) {
+      const nr=r+dr, nc=c+dc;
+      const vecino = (nr<0||nr>=ROWS||nc<0||nc>=COLS) ? null : grid[nr][nc];
+      if (vecino === tipo) continue; // misma sala → sin muro
+
+      const esNS = dir==='N'||dir==='S';
+      const gw = new THREE.BoxGeometry(
+        esNS ? S+0.02 : 0.14,
+        H_MUR,
+        esNS ? 0.14 : S+0.02
+      );
+      const muro = new THREE.Mesh(gw, matMuro);
+      muro.position.set(
+        c*S + offX + (dir==='E'? S/2 : dir==='W'? -S/2 : 0),
+        H_MUR/2,
+        r*S + offZ + (dir==='S'? S/2 : dir==='N'? -S/2 : 0)
+      );
+      muro.castShadow = true;
+      muro.receiveShadow = true;
+      scene.add(muro);
+    }
+  }
+}
+
+// ── Etiquetas ─────────────────────────────────────────────
+const colocadas = new Set();
+for (const [rs,re,cs,ce,cls] of roomsDef) {
+  if (colocadas.has(cls) || !LABEL_SALA[cls]) continue;
+  colocadas.add(cls);
+
+  const c2 = document.createElement('canvas');
+  c2.width = 256; c2.height = 80;
+  const ctx = c2.getContext('2d');
+  ctx.clearRect(0,0,256,80);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.roundRect(4,4,248,72,10);
+  ctx.fill();
+  ctx.fillStyle = '#f5e08a';
+  ctx.font = 'bold 32px Georgia';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 6;
+  ctx.fillText(LABEL_SALA[cls], 128, 40);
+
+  const tex = new THREE.CanvasTexture(c2);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  spr.position.set(
+    ((cs+ce)/2)*S + offX,
+    H_SAL + 0.7,
+    ((rs+re)/2)*S + offZ
+  );
+  spr.scale.set(2.6, 0.82, 1);
+  scene.add(spr);
+}
+
+// ── Resize ────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Loop ─────────────────────────────────────────────────
+(function animate() {
+  requestAnimationFrame(animate);
+  antorcha.intensity = 1.0 + Math.sin(Date.now() * 0.003) * 0.25;
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>

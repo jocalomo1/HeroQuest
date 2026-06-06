@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeroQuest Online</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div id="pantalla-inicio">
+    <div class="logo-container">
+      <h1 class="titulo-juego">⚔️ HEROQUEST</h1>
+      <p class="subtitulo">El Juego de Tablero Online</p>
+    </div>
+
+    <div class="menu-principal">
+
+      <!-- Crear sala (Zargon) -->
+      <div class="panel" id="panel-crear">
+        <h2>Crear Sala</h2>
+        <p class="desc-panel">Serás <strong>Zargon</strong>, el maestro del calabozo.</p>
+        <input type="text" id="nombre-zargon" placeholder="Tu nombre" maxlength="20">
+        <button id="btn-crear" class="btn-primario">Crear Sala</button>
+      </div>
+
+      <div class="separador">— o —</div>
+
+      <!-- Unirse como héroe -->
+      <div class="panel" id="panel-unirse">
+        <h2>Unirse a Sala</h2>
+        <p class="desc-panel">Únete como uno de los <strong>4 Héroes</strong>.</p>
+        <input type="text" id="nombre-heroe" placeholder="Tu nombre" maxlength="20">
+        <input type="text" id="codigo-sala" placeholder="Código de sala (ej: AB3XY)" maxlength="5" style="text-transform:uppercase">
+        <button id="btn-unirse" class="btn-secundario">Unirse</button>
+      </div>
+    </div>
+
+    <div id="mensaje-error" class="error-msg oculto"></div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="pantalla-lobby" class="oculto">
+    <div class="lobby-container">
+      <h2>Sala: <span id="codigo-sala-display"></span></h2>
+      <p id="instrucciones-lobby"></p>
+
+      <div id="lista-jugadores" class="lista-jugadores"></div>
+
+      <!-- Selección de héroe (solo para héroes) -->
+      <div id="seleccion-heroe" class="oculto">
+        <h3>Elige tu Héroe</h3>
+        <div class="heroes-grid">
+          <div class="heroe-opcion" data-tipo="barbaro">
+            <div class="heroe-icono">🪓</div>
+            <div class="heroe-nombre">Bárbaro</div>
+            <div class="heroe-stats">ATQ:3 DEF:2 PC:8 PM:2</div>
+            <div class="heroe-genero">
+              <button class="btn-genero activo" data-genero="m">♂</button>
+              <button class="btn-genero" data-genero="f">♀</button>
+            </div>
+          </div>
+          <div class="heroe-opcion" data-tipo="enano">
+            <div class="heroe-icono">🪖</div>
+            <div class="heroe-nombre">Enano</div>
+            <div class="heroe-stats">ATQ:2 DEF:2 PC:7 PM:3</div>
+            <div class="heroe-especial">Desactiva trampas</div>
+            <div class="heroe-genero">
+              <button class="btn-genero activo" data-genero="m">♂</button>
+              <button class="btn-genero" data-genero="f">♀</button>
+            </div>
+          </div>
+          <div class="heroe-opcion" data-tipo="elfo">
+            <div class="heroe-icono">🏹</div>
+            <div class="heroe-nombre">Elfo</div>
+            <div class="heroe-stats">ATQ:2 DEF:2 PC:6 PM:4</div>
+            <div class="heroe-especial">3 hechizos de Tierra</div>
+            <div class="heroe-genero">
+              <button class="btn-genero activo" data-genero="m">♂</button>
+              <button class="btn-genero" data-genero="f">♀</button>
+            </div>
+          </div>
+          <div class="heroe-opcion" data-tipo="mago">
+            <div class="heroe-icono">🔮</div>
+            <div class="heroe-nombre">Mago</div>
+            <div class="heroe-stats">ATQ:1 DEF:2 PC:4 PM:6</div>
+            <div class="heroe-especial">9 hechizos (Aire/Fuego/Agua)</div>
+            <div class="heroe-genero">
+              <button class="btn-genero activo" data-genero="m">♂</button>
+              <button class="btn-genero" data-genero="f">♀</button>
+            </div>
+          </div>
+        </div>
+        <button id="btn-confirmar-heroe" class="btn-primario" disabled>Confirmar Héroe</button>
+      </div>
+
+      <div class="lobby-acciones">
+        <button id="btn-listo" class="btn-listo" disabled>¡Estoy Listo!</button>
+        <p class="esperando-msg" id="msg-esperando">Esperando jugadores...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/lobby.js"></script>
+</body>
+</html>

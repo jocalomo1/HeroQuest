@@ -1,0 +1,155 @@
+/* Estilos del tablero - canvas y overlays */
+
+#area-tablero {
+  cursor: default;
+  user-select: none;
+}
+
+/* Cursor cuando hay casillas alcanzables */
+#tablero-canvas.modo-mover { cursor: crosshair; }
+#tablero-canvas.modo-atacar { cursor: cell; }
+#tablero-canvas.modo-hechizo { cursor: pointer; }
+
+/* Overlay para tooltips del tablero */
+#overlay-tablero {
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+}
+
+.tooltip-tablero {
+  position: absolute;
+  background: rgba(45, 31, 13, 0.95);
+  border: 1px solid var(--color-borde-activo, #d4943a);
+  border-radius: 4px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  color: #e8d5b0;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  max-width: 200px;
+  white-space: normal;
+}
+
+.tooltip-tablero strong { color: #d4943a; }
+
+/* Indicador de dado */
+.dado-visual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 0.2rem;
+}
+
+.dado-blanco {
+  background: #f0e8d0;
+  color: #1a1208;
+  border: 2px solid #c8b890;
+}
+
+.dado-negro {
+  background: #2a1a08;
+  color: #e8d5b0;
+  border: 2px solid #6b4a1a;
+}
+
+.dado-rojo {
+  background: #8b1a1a;
+  color: #ffe0d0;
+  border: 2px solid #c04040;
+}
+
+.calavera-symbol { color: #c04040; }
+.escudo-symbol { color: #4caf74; }
+.casco-symbol { color: #888; }
+
+/* Resultado de combate */
+.combate-resultado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.combate-linea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.combate-vs {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.dano-texto {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #ff6060;
+}
+
+.dano-texto.cero { color: var(--color-exito, #4caf74); }
+
+/* Panel de monstruos Zargon */
+.monstruo-zargon-item {
+  background: #1a0808;
+  border: 1px solid #6b1a1a;
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.monstruo-zargon-item:hover { border-color: #c04040; }
+.monstruo-zargon-item.seleccionado { border-color: #ff6060; background: rgba(192, 64, 64, 0.15); }
+.monstruo-zargon-item .mz-nombre { font-weight: bold; color: #ffaaaa; }
+.monstruo-zargon-item .mz-stats { color: #888; font-family: monospace; }
+
+/* Hechizos Zargon */
+.hechizo-zargon-item {
+  background: #0a0a1a;
+  border: 1px solid #3a2a6a;
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  margin-bottom: 0.3rem;
+}
+
+.hechizo-zargon-item:hover { border-color: #aa88ff; }
+.hechizo-zargon-item .hz-nombre { font-weight: bold; color: #aa88ff; }
+.hechizo-zargon-item .hz-desc { color: #888; font-size: 0.72rem; }
+
+/* Botones de acción de monstruo */
+.monstruo-acciones {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.btn-monstruo {
+  background: #1a0808;
+  border: 1px solid #6b1a1a;
+  color: #ffaaaa;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  transition: all 0.2s;
+}
+
+.btn-monstruo:hover { border-color: #c04040; background: rgba(192, 64, 64, 0.2); }
