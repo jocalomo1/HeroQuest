@@ -50,9 +50,10 @@ function emitirLog(codigoSala, mensaje, tipo = 'info') {
 io.on('connection', (socket) => {
 
   // ── CREAR SALA (Zargon) ──
-  socket.on('crear_sala', ({ nombre }) => {
+  socket.on('crear_sala', ({ nombre, misionId }) => {
     const codigo = generarCodigo();
-    const estado = engine.crearEstadoPartida(codigo, 1);
+    const idMision = (misionId !== undefined && misionId !== null) ? misionId : 1;
+    const estado = engine.crearEstadoPartida(codigo, idMision);
     estado.monstruos = engine.inicializarMonstruos(estado.mapa);
 
     const jugador = {

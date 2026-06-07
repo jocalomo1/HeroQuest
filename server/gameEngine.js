@@ -658,15 +658,19 @@ function construirOrdenTurno(jugadores) {
 // ─────────────────────────────────────────
 
 function verificarVictoria(estado) {
-  const mision = MISIONES.find(m => m.id === estado.misionActual);
-  // Todos los héroes muertos = derrota
   const heroesVivos = Object.values(estado.jugadores)
     .filter(j => j.rol === 'heroe' && j.heroe?.vivo);
   if (heroesVivos.length === 0) return { resultado: 'derrota', razon: 'Todos los héroes han caído.' };
 
-  // Verificación básica por tipo de misión (se amplía según misión)
   const misionState = estado.misionState || {};
   if (misionState.objetivoCompletado) return { resultado: 'victoria' };
+
+  // Si la misión tiene boss(es), victoria cuando todos están muertos
+  const monstruos = Object.values(estado.monstruos);
+  const bosses = monstruos.filter(m => m.esBoss);
+  if (bosses.length > 0 && bosses.every(m => !m.vivo)) {
+    return { resultado: 'victoria', razon: '¡Objetivo completado!' };
+  }
 
   return null;
 }

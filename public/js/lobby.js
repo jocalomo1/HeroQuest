@@ -23,7 +23,8 @@ const msgEsperando = document.getElementById('msg-esperando');
 // ── CREAR SALA ──
 btnCrear.addEventListener('click', () => {
   const nombre = document.getElementById('nombre-zargon').value.trim() || 'Zargon';
-  socket.emit('crear_sala', { nombre });
+  const modoPrueba = document.getElementById('modo-prueba')?.checked;
+  socket.emit('crear_sala', { nombre, misionId: modoPrueba ? 0 : 1 });
 });
 
 // ── UNIRSE ──

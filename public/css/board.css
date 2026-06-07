@@ -153,3 +153,133 @@
 }
 
 .btn-monstruo:hover { border-color: #c04040; background: rgba(192, 64, 64, 0.2); }
+
+/* ═══════════════════════════════════════════
+   DADOS 3D (prefijo dg- para no conflictar)
+   ═══════════════════════════════════════════ */
+
+.dg-wrap {
+  width: 54px;
+  height: 54px;
+  perspective: 220px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dg-dado {
+  width: 54px;
+  height: 54px;
+  position: relative;
+  transform-style: preserve-3d;
+  border-radius: 9px;
+  transform: rotateY(0deg);
+}
+
+@keyframes dg-girar {
+  0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
+  25%  { transform: rotateX(180deg) rotateY(90deg)  rotateZ(45deg); }
+  50%  { transform: rotateX(360deg) rotateY(270deg) rotateZ(120deg); }
+  75%  { transform: rotateX(540deg) rotateY(360deg) rotateZ(240deg); }
+  100% { transform: rotateX(720deg) rotateY(540deg) rotateZ(360deg); }
+}
+
+.dg-dado.dg-girando {
+  animation: dg-girar 0.7s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+.dg-cara {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+  border: 2px solid rgba(255,255,255,0.12);
+  backface-visibility: hidden;
+}
+
+.dg-rojo .dg-cara {
+  background: radial-gradient(circle at 35% 35%, #d83030, #780808);
+  color: #fff;
+  text-shadow: 1px 1px 3px #0008;
+}
+
+.dg-azul .dg-cara {
+  background: radial-gradient(circle at 35% 35%, #2848c0, #0c1848);
+  color: #c8e8ff;
+  text-shadow: 0 0 6px rgba(64,128,255,0.5);
+}
+
+/* Posiciones de las 6 caras (translateZ = mitad del ancho = 27px) */
+.dg-f { transform: rotateY(0deg)    translateZ(27px); }
+.dg-b { transform: rotateY(180deg)  translateZ(27px); }
+.dg-l { transform: rotateY(-90deg)  translateZ(27px); }
+.dg-r { transform: rotateY(90deg)   translateZ(27px); }
+.dg-u { transform: rotateX(90deg)   translateZ(27px); }
+.dg-d { transform: rotateX(-90deg)  translateZ(27px); }
+
+/* Layout del modal de combate */
+.dados-combate-layout {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 0.6rem 0;
+}
+
+.dg-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.dg-fila {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 54px;
+  align-items: center;
+}
+
+.dg-fila-central {
+  margin: 0.8rem auto;
+  justify-content: center;
+}
+
+.dg-label {
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.dg-label-azul { background: rgba(12,24,72,0.8); color: #80c0ff; border: 1px solid #2858c0; }
+.dg-label-rojo { background: rgba(96,16,8,0.8);  color: #ff9080; border: 1px solid #a02010; }
+
+.dg-vs {
+  font-size: 1.2rem;
+  color: #5a3a10;
+  align-self: center;
+  padding: 0 2px;
+  margin-top: 26px;
+}
+
+/* Modal de dados: modal-contenido más ancho cuando hay combate */
+#modal-dados .modal-contenido {
+  min-width: 300px;
+  max-width: 520px;
+}
+
+#modal-descripcion {
+  min-height: 1.2em;
+  font-size: 0.9rem;
+}

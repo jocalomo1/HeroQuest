@@ -2,6 +2,57 @@
 // UI: Paneles, modales y componentes
 // ─────────────────────────────────────────
 
+// Caras del dado de combate en orden: f, b, l, r, u, d
+const _COMBATE_CARAS = ['\u{1F480}','\u{1F480}','\u{1F480}','\u{1F6E1}','\u{1F6E1}','⚫'];
+const _CARAS_NUM     = ['1','2','3','4','5','6'];
+
+// Rotación que pone cada cara al frente (inversa de la posición CSS de esa cara)
+const _ROTACIONES_IDX = [
+  'rotateY(0deg)',    // idx 0 → dg-f
+  'rotateY(180deg)',  // idx 1 → dg-b
+  'rotateY(90deg)',   // idx 2 → dg-l
+  'rotateY(-90deg)',  // idx 3 → dg-r
+  'rotateX(-90deg)',  // idx 4 → dg-u
+  'rotateX(90deg)',   // idx 5 → dg-d
+];
+
+function _resultadoAIdx(resultado) {
+  if (resultado === 'calavera')      return [0,1,2][Math.floor(Math.random()*3)];
+  if (resultado === 'escudo_blanco') return [3,4][Math.floor(Math.random()*2)];
+  if (resultado === 'casco')         return [3,4][Math.floor(Math.random()*2)];
+  if (resultado === 'escudo_negro')  return 5;
+  return 0;
+}
+
+function _crearDado3D(color, caras) {
+  const wrap = document.createElement('div');
+  wrap.className = 'dg-wrap';
+  const dado = document.createElement('div');
+  dado.className = `dg-dado dg-${color}`;
+  ['dg-f','dg-b','dg-l','dg-r','dg-u','dg-d'].forEach((cls, i) => {
+    const cara = document.createElement('div');
+    cara.className = `dg-cara ${cls}`;
+    cara.textContent = caras[i];
+    dado.appendChild(cara);
+  });
+  wrap.appendChild(dado);
+  return { wrap, dado };
+}
+
+function _lanzarDado3D(dado, idx) {
+  return new Promise(resolve => {
+    dado.classList.remove('dg-girando');
+    void dado.offsetWidth;
+    dado.classList.add('dg-girando');
+    dado.addEventListener('animationend', function h() {
+      dado.removeEventListener('animationend', h);
+      dado.classList.remove('dg-girando');
+      dado.style.transform = _ROTACIONES_IDX[idx];
+      resolve();
+    }, { once: true });
+  });
+}
+
 const UI = {
 
   // ── LOG ──
@@ -193,33 +244,100 @@ const UI = {
     }
   },
 
-  // ── MODAL DADOS ──
-  mostrarDados(titulo, dados, descripcion) {
+  // ── MODAL DADOS: COMBATE (animado) ──
+  mostrarDadosCombate(titulo, atkResultados, atkColor, defResultados, defColor, descripcion) {
     const modal = document.getElementById('modal-dados');
     document.getElementById('modal-titulo').textContent = titulo;
-    document.getElementById('modal-descripcion').textContent = descripcion || '';
+    document.getElementById('modal-descripcion').textContent = '…';
 
     const container = document.getElementById('dados-resultado');
     container.innerHTML = '';
+    container.className = 'dados-combate-layout';
 
-    dados.forEach(d => {
-      const div = document.createElement('div');
-      div.className = `dado-visual ${d.tipo === 'blanco' ? 'dado-blanco' : d.tipo === 'negro' ? 'dado-negro' : 'dado-rojo'}`;
-      const simbolo = d.resultado === 'calavera' ? '💀' :
-                      d.resultado === 'escudo_blanco' ? '🛡️' :
-                      d.resultado === 'escudo_negro' ? '⬛' :
-                      d.resultado === 'casco' ? '⛑️' :
-                      d.resultado.toString();
-      div.textContent = simbolo;
-      container.appendChild(div);
+    const atkCol = document.createElement('div');
+    atkCol.className = 'dg-col';
+    const atkLabel = document.createElement('div');
+    atkLabel.className = `dg-label dg-label-${atkColor}`;
+    atkLabel.textContent = atkColor === 'azul' ? 'Ataque (Héroe)' : 'Ataque (Monstruo)';
+    const atkFila = document.createElement('div');
+    atkFila.className = 'dg-fila';
+    atkCol.appendChild(atkLabel);
+    atkCol.appendChild(atkFila);
+
+    const vs = document.createElement('div');
+    vs.className = 'dg-vs';
+    vs.textContent = 'vs';
+
+    const defCol = document.createElement('div');
+    defCol.className = 'dg-col';
+    const defLabel = document.createElement('div');
+    defLabel.className = `dg-label dg-label-${defColor}`;
+    defLabel.textContent = defColor === 'rojo' ? 'Defensa (Monstruo)' : 'Defensa (Héroe)';
+    const defFila = document.createElement('div');
+    defFila.className = 'dg-fila';
+    defCol.appendChild(defLabel);
+    defCol.appendChild(defFila);
+
+    container.appendChild(atkCol);
+    container.appendChild(vs);
+    container.appendChild(defCol);
+
+    const promesas = [];
+
+    (atkResultados || []).forEach(r => {
+      const idx = _resultadoAIdx(r);
+      const { wrap, dado } = _crearDado3D(atkColor, _COMBATE_CARAS);
+      atkFila.appendChild(wrap);
+      promesas.push(_lanzarDado3D(dado, idx));
+    });
+
+    (defResultados || []).forEach(r => {
+      const idx = _resultadoAIdx(r);
+      const { wrap, dado } = _crearDado3D(defColor, _COMBATE_CARAS);
+      defFila.appendChild(wrap);
+      promesas.push(_lanzarDado3D(dado, idx));
     });
 
     modal.classList.remove('oculto');
+
+    Promise.all(promesas).then(() => {
+      document.getElementById('modal-descripcion').textContent = descripcion || '';
+    });
+
     return new Promise(resolve => {
       document.getElementById('modal-cerrar').onclick = () => {
         modal.classList.add('oculto');
         resolve();
       };
+    });
+  },
+
+  // ── MODAL DADOS: MOVIMIENTO (animado, no bloqueante) ──
+  mostrarDadosMovimiento(valores, movMax) {
+    const modal = document.getElementById('modal-dados');
+    document.getElementById('modal-titulo').textContent = 'Movimiento';
+    document.getElementById('modal-descripcion').textContent = '…';
+
+    const container = document.getElementById('dados-resultado');
+    container.innerHTML = '';
+    container.className = 'dg-fila dg-fila-central';
+
+    const promesas = [];
+    valores.forEach(v => {
+      const idx = Math.max(0, Math.min(5, v - 1));
+      const { wrap, dado } = _crearDado3D('rojo', _CARAS_NUM);
+      container.appendChild(wrap);
+      promesas.push(_lanzarDado3D(dado, idx));
+    });
+
+    modal.classList.remove('oculto');
+
+    Promise.all(promesas).then(() => {
+      const total = valores.reduce((a, b) => a + b, 0);
+      document.getElementById('modal-descripcion').textContent =
+        `${valores.join(' + ')} = ${total} paso${total !== 1 ? 's' : ''}`;
+      // Auto-cerrar a los 2.5 s si el usuario no lo cerró antes
+      setTimeout(() => modal.classList.add('oculto'), 2500);
     });
   },
 

@@ -311,6 +311,60 @@ function generarCeldasSala(startX, startY, w, h) {
   return cells;
 }
 
+// ─────────────────────────────────────────
+// MISIÓN 0: Sala de Prueba (1 habitación)
+// ─────────────────────────────────────────
+const mision_prueba = {
+  id: 0,
+  nombre: 'Misión de Prueba',
+  objetivo: 'Elimina al Goblin Guardián para completar la prueba.',
+  descripcion: 'Una sola habitación para probar movimiento, combate, trampas y tesoros.',
+  wanderingMonster: 'orco',
+  tieneTrampas: true,
+  recompensa: 0,
+  grid: [
+  //   0  1  2  3  4  5  6  7  8  9
+    [  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 0
+    [  0, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // 1 ← sala
+    [  0, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // 2
+    [  0, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // 3
+    [  0, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // 4
+    [  0, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // 5
+    [  0, 0, 0, 3, 0, 0, 0, 0, 0, 0 ], // 6 ← puerta en (3,6)
+    [  5, 2, 2, 2, 0, 0, 0, 0, 0, 0 ], // 7 ← escalera+(pasillo cols 0-3)
+    [  0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 8
+  ],
+  rooms: {
+    pasillo: {
+      name: 'Pasillo de Entrada',
+      pasillo: true,
+      cells: [
+        { x: 0, y: 7 }, { x: 1, y: 7 }, { x: 2, y: 7 }, { x: 3, y: 7 },
+        { x: 3, y: 6 }  // celda de la puerta — parte del pasillo
+      ]
+    },
+    sala_prueba: {
+      name: 'Sala de Prueba',
+      cells: rect(1, 1, 8, 5)
+    }
+  },
+  doors: [
+    { id: 'd_prueba', x: 3, y: 6, orientation: 'h',
+      roomA: 'pasillo', roomB: 'sala_prueba', open: false }
+  ],
+  stairs: { entrada: { x: 0, y: 7 } },
+  monsters: [
+    { uid: 'mtest_goblin', type: 'orco', x: 5, y: 3, roomId: 'sala_prueba',
+      pcActual: 1, esBoss: true, nombre: 'Goblin Guardián' }
+  ],
+  specialPoints: [
+    { id: 'sp_trampa', x: 2, y: 3, tipo: 'cofre_trampa',
+      data: { trampa: 'aguja', dano: 1, descripcion: '¡Trampa de Agujas! -1 PC al abrirla.', usada: false } },
+    { id: 'sp_cofre',  x: 7, y: 2, tipo: 'tesoro_especial',
+      data: { descripcion: 'Cofre de prueba: 10 monedas de oro.', oro: 10, usada: false } }
+  ]
+};
+
 const mision4 = crearMisionSimple(4, 'Misión 4: El Oro del Príncipe Magnus',
   'Recuperar 3 Cofres del Tesoro y llevarlos a la escalera.', 'abominacion', 240,
   [{ uid: 'm4_gulthor', type: 'guerrero_terror', x: 15, y: 10, roomId: 'sala_final', pcActual: 3, esBoss: true, nombre: 'Gulthor' }]
@@ -353,6 +407,7 @@ const mision14 = crearMisionSimple(14, 'Misión 14: Retorno a Barak Tor',
 );
 
 const MISIONES = [
+  mision_prueba,
   mision1, mision2, mision3, mision4, mision5,
   mision6, mision7, mision8, mision9, mision10,
   mision11, mision12, mision13, mision14

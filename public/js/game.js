@@ -240,19 +240,21 @@ socket.on('nuevo_turno', ({ jugadorId, nombre, rol, numeroTurno }) => {
 
 socket.on('casillas_alcanzables', ({ casillas, movMax, tirada }) => {
   tablero.setCasillasAlcanzables(casillas);
-  UI.agregarLog(`Movimiento: ${tirada?.join('+')} = ${movMax} casillas`, 'info');
+  if (tirada?.length) UI.mostrarDadosMovimiento(tirada, movMax);
+  UI.agregarLog(`Movimiento: ${tirada?.join('+')} = ${movMax} pasos`, 'info');
 });
 
 socket.on('resultado_ataque', ({ resultado, monstruoUid, muerto }) => {
-  const msg = `Ataque: ${resultado.calaveras} golpes vs ${resultado.escudos} escudos → ${resultado.danoFinal} daño${muerto ? '. ¡Derrotado!' : ''}`;
+  const msg = `Ataque: ${resultado.calaveras} 💀 vs ${resultado.escudos} escudos → ${resultado.danoFinal} daño${muerto ? '. ¡Derrotado!' : ''}`;
   UI.agregarLog(msg, 'combate');
-  mostrarResultadoCombate(resultado);
+  mostrarResultadoCombate(resultado, true);
 });
 
 socket.on('resultado_ataque_monstruo', ({ resultado, heroeSocketId, muerto }) => {
   const heroe = estadoActual?.jugadores?.[heroeSocketId]?.heroe;
-  const msg = `Monstruo ataca a ${heroe?.nombre || '?'}: ${resultado.calaveras} golpes vs ${resultado.escudos} escudos → ${resultado.danoFinal} daño${muerto ? '. ¡HÉROE CAÍDO!' : ''}`;
+  const msg = `Monstruo ataca a ${heroe?.nombre || '?'}: ${resultado.calaveras} 💀 vs ${resultado.escudos} escudos → ${resultado.danoFinal} daño${muerto ? '. ¡HÉROE CAÍDO!' : ''}`;
   UI.agregarLog(msg, muerto ? 'muerte' : 'combate');
+  mostrarResultadoCombate(resultado, false);
 });
 
 socket.on('carta_tesoro', ({ carta }) => {
@@ -389,14 +391,19 @@ function limpiarModo() {
   tablero.canvas.className = '';
 }
 
-function mostrarResultadoCombate(resultado) {
-  // Mostrar brevemente el resultado en el modal de dados
-  const dadosBlancos = resultado.resultadosAtaque.map(r => ({ tipo: 'blanco', resultado: r }));
-  const dadosNegros = resultado.resultadosDefensa.map(r => ({ tipo: 'negro', resultado: r }));
-  const todos = [...dadosBlancos, ...dadosNegros];
-
-  const desc = `${resultado.calaveras} golpes vs ${resultado.escudos} escudos = ${resultado.danoFinal} daño`;
-  UI.mostrarDados('Resultado del combate', todos, desc);
+function mostrarResultadoCombate(resultado, heroAtaca = true) {
+  const atkColor = heroAtaca ? 'azul' : 'rojo';
+  const defColor = heroAtaca ? 'rojo' : 'azul';
+  const dano = resultado.danoFinal;
+  const desc = dano > 0
+    ? `${resultado.calaveras} \u{1F480} vs ${resultado.escudos} escudos = ${dano} daño`
+    : resultado.calaveras === 0 ? 'Sin impacto' : 'Bloqueado';
+  UI.mostrarDadosCombate(
+    heroAtaca ? 'Ataque del Héroe' : 'Ataque del Monstruo',
+    resultado.resultadosAtaque, atkColor,
+    resultado.resultadosDefensa, defColor,
+    desc
+  );
 }
 
 // Reconexión al reconectar al servidor
