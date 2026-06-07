@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Prueba Dados HeroQuest</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1008;
+    color: #f0d080;
+    font-family: 'Georgia', serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #d4a030;
+    margin-bottom: 8px;
+    text-shadow: 0 0 12px #a06010;
+  }
+
+  .subtitle {
+    color: #806030;
+    font-size: 0.85rem;
+    margin-bottom: 40px;
+    letter-spacing: 1px;
+  }
+
+  /* ── SECCIÓN ── */
+  .seccion {
+    background: #2a1a08;
+    border: 1px solid #5a3a10;
+    border-radius: 10px;
+    padding: 28px 36px;
+    margin-bottom: 28px;
+    width: 100%;
+    max-width: 620px;
+    text-align: center;
+  }
+
+  .seccion h2 {
+    font-size: 1rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #c09030;
+    margin-bottom: 20px;
+  }
+
+  /* ── TOGGLE ATACANTE ── */
+  .toggle-atacante {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 24px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #5a3a10;
+  }
+
+  .toggle-atacante button {
+    flex: 1;
+    padding: 9px 20px;
+    font-family: 'Georgia', serif;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, color 0.2s;
+    background: #1a1008;
+    color: #606040;
+  }
+
+  .toggle-atacante button.activo-heroe {
+    background: linear-gradient(180deg, #1830a0, #0c1860);
+    color: #a0d0ff;
+    text-shadow: 0 0 8px #4080ff80;
+  }
+
+  .toggle-atacante button.activo-monstruo {
+    background: linear-gradient(180deg, #a02010, #601008);
+    color: #ffb0a0;
+    text-shadow: 0 0 8px #ff400060;
+  }
+
+  /* ── FILA DE DADOS ── */
+  .fila-dados {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    min-height: 72px;
+    align-items: center;
+  }
+
+  /* ── DADO 3D ── */
+  .dado-wrap {
+    width: 60px;
+    height: 60px;
+    perspective: 300px;
+  }
+
+  .dado {
+    width: 60px;
+    height: 60px;
+    position: relative;
+    transform-style: preserve-3d;
+    border-radius: 10px;
+    cursor: default;
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+
+  @keyframes girar {
+    0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
+    25%  { transform: rotateX(180deg) rotateY(90deg)  rotateZ(45deg); }
+    50%  { transform: rotateX(360deg) rotateY(270deg) rotateZ(120deg); }
+    75%  { transform: rotateX(540deg) rotateY(360deg) rotateZ(240deg); }
+    100% { transform: rotateX(720deg) rotateY(540deg) rotateZ(360deg); }
+  }
+
+  .dado.girando {
+    animation: girar 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+
+  .dado .cara {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    border: 2px solid rgba(255,255,255,0.15);
+    backface-visibility: hidden;
+  }
+
+  /* Dados rojos — movimiento y monstruo */
+  .dado-rojo .cara {
+    background: radial-gradient(circle at 35% 35%, #e03030, #800808);
+    color: #fff;
+    text-shadow: 1px 1px 3px #0008;
+  }
+
+  /* Dados azules — héroe */
+  .dado-azul .cara {
+    background: radial-gradient(circle at 35% 35%, #2848c0, #0c1848);
+    color: #c8e8ff;
+    text-shadow: 0 0 6px #4080ff80;
+  }
+
+  /* Posiciones caras */
+  .cara-f  { transform: rotateY(0deg)    translateZ(30px); }
+  .cara-b  { transform: rotateY(180deg)  translateZ(30px); }
+  .cara-l  { transform: rotateY(-90deg)  translateZ(30px); }
+  .cara-r  { transform: rotateY(90deg)   translateZ(30px); }
+  .cara-u  { transform: rotateX(90deg)   translateZ(30px); }
+  .cara-d  { transform: rotateX(-90deg)  translateZ(30px); }
+
+  /* ── COLUMNAS COMBATE ── */
+  .col-combate {
+    text-align: center;
+    min-width: 200px;
+  }
+
+  .col-combate .etiqueta {
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .etiqueta-azul  { background:#0c184890; color:#80c0ff; border:1px solid #2858c0; }
+  .etiqueta-rojo  { background:#60100890; color:#ff9080; border:1px solid #a02010; }
+
+  .col-combate .subtitulo-col {
+    font-size: 0.7rem;
+    color: #706040;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  /* ── CONTROL DADOS ── */
+  .control-dados {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .control-dados label {
+    color: #906030;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+  }
+
+  .control-dados select {
+    background: #1a1008;
+    color: #f0d080;
+    border: 1px solid #5a3a10;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.9rem;
+    font-family: 'Georgia', serif;
+    cursor: pointer;
+  }
+
+  /* ── RESULTADO ── */
+  .resultado-num {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ffcc30;
+    text-shadow: 0 0 10px #ff8020;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .resultado-simbolos {
+    font-size: 1.6rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .resultado-texto {
+    font-size: 0.8rem;
+    color: #806030;
+    min-height: 20px;
+    letter-spacing: 1px;
+  }
+
+  /* ── BOTÓN ── */
+  .btn-lanzar {
+    background: linear-gradient(180deg, #b04010, #601808);
+    color: #f0d080;
+    border: 2px solid #d06020;
+    border-radius: 8px;
+    padding: 10px 28px;
+    font-size: 1rem;
+    font-family: 'Georgia', serif;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 3px 8px #0006;
+  }
+
+  .btn-lanzar:hover {
+    background: linear-gradient(180deg, #d05020, #801808);
+    box-shadow: 0 0 14px #d0602060;
+  }
+
+  .btn-lanzar:active { transform: scale(0.96); }
+  .btn-lanzar:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── DIVISOR ── */
+  .vs {
+    font-size: 1.4rem;
+    color: #5a3a10;
+    align-self: center;
+    padding: 0 4px;
+  }
+
+  .res-combate-final {
+    font-size: 1.05rem;
+    min-height: 32px;
+    letter-spacing: 1px;
+    margin: 14px 0 18px;
+    color: #f0c060;
+  }
+
+  .tag-rojo  { background:#6010088a; color:#ff8060; border:1px solid #a03020; }
+</style>
+</head>
+<body>
+
+<h1>HeroQuest — Dados</h1>
+<p class="subtitle">Prototipo de animación</p>
+
+<!-- ══════════════ MOVIMIENTO ══════════════ -->
+<div class="seccion">
+  <h2>Dados de Movimiento</h2>
+
+  <div class="control-dados">
+    <label>Cantidad:</label>
+    <select id="sel-mov">
+      <option value="1">1 dado</option>
+      <option value="2" selected>2 dados</option>
+    </select>
+  </div>
+
+  <div class="fila-dados" id="fila-mov"></div>
+
+  <div class="resultado-num" id="res-mov">—</div>
+  <p class="resultado-texto" id="txt-mov">pasos disponibles</p>
+
+  <br>
+  <button class="btn-lanzar" id="btn-mov" onclick="lanzarMovimiento()">⚄ Lanzar</button>
+</div>
+
+<!-- ══════════════ COMBATE ══════════════ -->
+<div class="seccion">
+  <h2>Dados de Combate</h2>
+
+  <!-- Toggle quién ataca -->
+  <div class="toggle-atacante">
+    <button id="btn-heroe"    onclick="setAtacante('heroe')"    class="activo-heroe">⚔ Héroe ataca</button>
+    <button id="btn-monstruo" onclick="setAtacante('monstruo')">💀 Monstruo ataca</button>
+  </div>
+
+  <!-- Leyenda dinámica -->
+  <div id="leyenda-combate" style="font-size:0.75rem;color:#706040;margin-bottom:18px;letter-spacing:1px;">
+    Dados <span style="color:#80c0ff;">azules</span> = héroe &nbsp;|&nbsp;
+    Dados <span style="color:#ff9080;">rojos</span> = monstruo
+  </div>
+
+  <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;align-items:flex-start;">
+
+    <!-- Ataque -->
+    <div class="col-combate">
+      <div id="etiqueta-atk" class="etiqueta etiqueta-azul">Ataque</div>
+      <div id="sub-atk" class="subtitulo-col">Héroe</div>
+      <div class="control-dados">
+        <label>Dados:</label>
+        <select id="sel-atk">
+          <option value="1">1</option>
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </div>
+      <div class="fila-dados" id="fila-atk"></div>
+      <div class="resultado-simbolos" id="res-atk">—</div>
+      <div class="resultado-texto" style="margin-top:4px;">💀 calaveras</div>
+    </div>
+
+    <div class="vs">vs</div>
+
+    <!-- Defensa -->
+    <div class="col-combate">
+      <div id="etiqueta-def" class="etiqueta etiqueta-rojo">Defensa</div>
+      <div id="sub-def" class="subtitulo-col">Monstruo</div>
+      <div class="control-dados">
+        <label>Dados:</label>
+        <select id="sel-def">
+          <option value="1">1</option>
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </div>
+      <div class="fila-dados" id="fila-def"></div>
+      <div class="resultado-simbolos" id="res-def">—</div>
+      <div class="resultado-texto" style="margin-top:4px;">🛡 escudo blanco &nbsp;⚫ escudo negro</div>
+    </div>
+  </div>
+
+  <div class="res-combate-final" id="res-combate"></div>
+
+  <button class="btn-lanzar" id="btn-combate" onclick="lanzarCombate()">⚔ Lanzar Combate</button>
+</div>
+
+<script>
+// ── CONSTANTES ──────────────────────────────────────────────
+const COMBATE_CARAS = ['💀','💀','💀','🛡','🛡','⚫'];
+
+// Las 6 caras están asignadas en orden: f, b, l, r, u, d
+// Para mostrar cada cara al frente hay que aplicar la rotación inversa a la de su posición CSS:
+//   cara-f: rotateY(0)      → die rotateY(0)
+//   cara-b: rotateY(180)    → die rotateY(180)
+//   cara-l: rotateY(-90)    → die rotateY(+90)   (trae la cara izq al frente)
+//   cara-r: rotateY(+90)    → die rotateY(-90)
+//   cara-u: rotateX(+90)    → die rotateX(-90)   (trae la cara superior al frente)
+//   cara-d: rotateX(-90)    → die rotateX(+90)
+const ROTACIONES_IDX = [
+  'rotateY(0deg)',     // índice 0 → cara-f
+  'rotateY(180deg)',   // índice 1 → cara-b
+  'rotateY(90deg)',    // índice 2 → cara-l
+  'rotateY(-90deg)',   // índice 3 → cara-r
+  'rotateX(-90deg)',   // índice 4 → cara-u
+  'rotateX(90deg)',    // índice 5 → cara-d
+];
+
+// 'heroe' = azul ataca, rojo defiende
+// 'monstruo' = rojo ataca, azul defiende
+let atacante = 'heroe';
+
+// ── TOGGLE ───────────────────────────────────────────────────
+function setAtacante(tipo) {
+  atacante = tipo;
+
+  const btnH = document.getElementById('btn-heroe');
+  const btnM = document.getElementById('btn-monstruo');
+
+  btnH.className = tipo === 'heroe'    ? 'activo-heroe'    : '';
+  btnM.className = tipo === 'monstruo' ? 'activo-monstruo' : '';
+
+  if (tipo === 'heroe') {
+    document.getElementById('etiqueta-atk').className = 'etiqueta etiqueta-azul';
+    document.getElementById('sub-atk').textContent = 'Héroe';
+    document.getElementById('etiqueta-def').className = 'etiqueta etiqueta-rojo';
+    document.getElementById('sub-def').textContent = 'Monstruo';
+  } else {
+    document.getElementById('etiqueta-atk').className = 'etiqueta etiqueta-rojo';
+    document.getElementById('sub-atk').textContent = 'Monstruo';
+    document.getElementById('etiqueta-def').className = 'etiqueta etiqueta-azul';
+    document.getElementById('sub-def').textContent = 'Héroe';
+  }
+
+  // Redibujar dados vacíos con nuevo color
+  renderDadosVacios();
+  document.getElementById('res-atk').textContent = '—';
+  document.getElementById('res-def').textContent = '—';
+  document.getElementById('res-combate').textContent = '';
+}
+
+// ── CREAR DADO ───────────────────────────────────────────────
+// color: 'rojo' | 'azul'
+// caras: array de 6 strings para las caras
+function crearDado(color, caras) {
+  const wrap = document.createElement('div');
+  wrap.className = 'dado-wrap';
+
+  const dado = document.createElement('div');
+  dado.className = `dado dado-${color}`;
+
+  const posiciones = ['cara-f','cara-b','cara-l','cara-r','cara-u','cara-d'];
+  posiciones.forEach((pos, i) => {
+    const cara = document.createElement('div');
+    cara.className = `cara ${pos}`;
+    cara.textContent = caras[i];
+    dado.appendChild(cara);
+  });
+
+  wrap.appendChild(dado);
+  return { wrap, dado };
+}
+
+// ── ANIMAR ───────────────────────────────────────────────────
+// idx: índice 0-5 de la cara que debe quedar visible
+function lanzarDado(dado, idx) {
+  return new Promise(resolve => {
+    dado.classList.remove('girando');
+    void dado.offsetWidth;
+    dado.classList.add('girando');
+
+    dado.addEventListener('animationend', function handler() {
+      dado.removeEventListener('animationend', handler);
+      dado.classList.remove('girando');
+      dado.style.transform = ROTACIONES_IDX[idx];
+      resolve(idx);
+    }, { once: true });
+  });
+}
+
+// ── COLORES SEGÚN ATACANTE ────────────────────────────────────
+function colorAtk() { return atacante === 'heroe' ? 'azul' : 'rojo'; }
+function colorDef() { return atacante === 'heroe' ? 'rojo' : 'azul'; }
+
+// ── RENDER DADOS VACÍOS (sin animar) ─────────────────────────
+function renderDadosVacios() {
+  const nAtk = parseInt(document.getElementById('sel-atk').value);
+  const nDef = parseInt(document.getElementById('sel-def').value);
+  const fa = document.getElementById('fila-atk');
+  const fd = document.getElementById('fila-def');
+
+  fa.innerHTML = '';
+  fd.innerHTML = '';
+
+  for (let i = 0; i < nAtk; i++) {
+    const { wrap } = crearDado(colorAtk(), COMBATE_CARAS);
+    fa.appendChild(wrap);
+  }
+  for (let i = 0; i < nDef; i++) {
+    const { wrap } = crearDado(colorDef(), COMBATE_CARAS);
+    fd.appendChild(wrap);
+  }
+}
+
+// ── MOVIMIENTO ───────────────────────────────────────────────
+async function lanzarMovimiento() {
+  const btn = document.getElementById('btn-mov');
+  const fila = document.getElementById('fila-mov');
+  const resNum = document.getElementById('res-mov');
+  const resTxt = document.getElementById('txt-mov');
+  const n = parseInt(document.getElementById('sel-mov').value);
+
+  btn.disabled = true;
+  resNum.textContent = '…';
+  resTxt.textContent = '';
+  fila.innerHTML = '';
+
+  const carasNum = ['1','2','3','4','5','6'];
+  const dados = [];
+  const valores = [];
+
+  for (let i = 0; i < n; i++) {
+    const idx = Math.floor(Math.random() * 6); // 0-5, valor = idx+1
+    valores.push(idx + 1);
+    const { wrap, dado } = crearDado('rojo', carasNum);
+    fila.appendChild(wrap);
+    dados.push({ dado, idx });
+  }
+
+  await Promise.all(dados.map(({ dado, idx }) => lanzarDado(dado, idx)));
+
+  const total = valores.reduce((a, b) => a + b, 0);
+  resNum.textContent = total;
+  resTxt.textContent = total === 1 ? 'paso disponible' : 'pasos disponibles';
+  btn.disabled = false;
+}
+
+// ── COMBATE ──────────────────────────────────────────────────
+async function lanzarCombate() {
+  const btn = document.getElementById('btn-combate');
+  const filaAtk = document.getElementById('fila-atk');
+  const filaDef = document.getElementById('fila-def');
+  const resAtk = document.getElementById('res-atk');
+  const resDef = document.getElementById('res-def');
+  const resCombate = document.getElementById('res-combate');
+
+  const nAtk = parseInt(document.getElementById('sel-atk').value);
+  const nDef = parseInt(document.getElementById('sel-def').value);
+
+  btn.disabled = true;
+  resAtk.textContent = '…';
+  resDef.textContent = '…';
+  resCombate.textContent = '';
+  filaAtk.innerHTML = '';
+  filaDef.innerHTML = '';
+
+  const promesas = [];
+  const resAtaque   = [];
+  const resDefensa  = [];
+
+  for (let i = 0; i < nAtk; i++) {
+    const idx = Math.floor(Math.random() * COMBATE_CARAS.length);
+    const { wrap, dado } = crearDado(colorAtk(), COMBATE_CARAS);
+    filaAtk.appendChild(wrap);
+    resAtaque.push(COMBATE_CARAS[idx]);
+    promesas.push(lanzarDado(dado, idx));
+  }
+
+  for (let i = 0; i < nDef; i++) {
+    const idx = Math.floor(Math.random() * COMBATE_CARAS.length);
+    const { wrap, dado } = crearDado(colorDef(), COMBATE_CARAS);
+    filaDef.appendChild(wrap);
+    resDefensa.push(COMBATE_CARAS[idx]);
+    promesas.push(lanzarDado(dado, idx));
+  }
+
+  await Promise.all(promesas);
+
+  const calaveras = resAtaque.filter(c => c === '💀').length;
+  // heroe ataca -> monstruo defiende -> solo escudo negro cuenta
+  // monstruo ataca -> heroe defiende -> solo escudo blanco cuenta
+  const simboloDefensa = atacante === 'heroe' ? '⚫' : '🛡';
+  const escudos = resDefensa.filter(c => c === simboloDefensa).length;
+
+  resAtk.innerHTML = resAtaque.map(c  => `<span>${c}</span>`).join('');
+  resDef.innerHTML = resDefensa.map(c => `<span>${c}</span>`).join('');
+
+  const daño = Math.max(0, calaveras - escudos);
+  if (daño > 0) {
+    resCombate.innerHTML = `<span style="color:#ff6040;">💥 ${daño} daño${daño > 1 ? 's' : ''}</span>`;
+  } else if (calaveras === 0) {
+    resCombate.innerHTML = `<span style="color:#908060;">Sin impacto</span>`;
+  } else {
+    resCombate.innerHTML = `<span style="color:#60aaff;">🛡 Bloqueado completamente</span>`;
+  }
+
+  btn.disabled = false;
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Dados de movimiento
+  const carasNum = ['1','2','3','4','5','6'];
+  const fila = document.getElementById('fila-mov');
+  for (let i = 0; i < 2; i++) {
+    const { wrap } = crearDado('rojo', carasNum);
+    fila.appendChild(wrap);
+  }
+
+  // Dados de combate (estado inicial: héroe ataca)
+  renderDadosVacios();
+
+  // Actualizar dados vacíos al cambiar el selector de cantidad
+  document.getElementById('sel-atk').addEventListener('change', renderDadosVacios);
+  document.getElementById('sel-def').addEventListener('change', renderDadosVacios);
+});
+</script>
+</body>
+</html>
