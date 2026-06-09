@@ -84,15 +84,28 @@
       <div id="acciones-turno" class="oculto">
         <h4>Acciones</h4>
         <div class="botones-accion">
-          <button id="btn-mover" class="btn-accion" title="Tirar dados y mover">
-            🚶 Mover
-          </button>
-          <button id="btn-buscar-tesoros" class="btn-accion" title="Buscar tesoros en habitación sin monstruos">
-            🔍 Buscar Tesoros
-          </button>
-          <button id="btn-buscar-trampas" class="btn-accion" title="Buscar trampas sin monstruos visibles">
-            🕵️ Buscar Trampas
-          </button>
+          <!-- Botones exclusivos del héroe -->
+          <div id="botones-heroe">
+            <button id="btn-mover" class="btn-accion" title="Tirar dados y mover">
+              🚶 Mover
+            </button>
+            <div id="contador-movimiento" class="contador-mov oculto">
+              Pasos restantes: <span id="pasos-restantes">0</span>
+            </div>
+            <button id="btn-atacar" class="btn-accion" title="Atacar monstruo adyacente">
+              ⚔️ Atacar
+            </button>
+            <button id="btn-buscar-tesoros" class="btn-accion" title="Buscar tesoros en habitación sin monstruos">
+              🔍 Buscar Tesoros
+            </button>
+            <button id="btn-buscar-trampas" class="btn-accion" title="Buscar trampas sin monstruos visibles">
+              🕵️ Buscar Trampas
+            </button>
+            <button id="btn-desactivar-trampa" class="btn-accion oculto" title="Desactivar trampa revelada en tu habitación">
+              🔧 Desactivar Trampa
+            </button>
+          </div>
+          <!-- Terminar turno: visible para todos -->
           <button id="btn-terminar-turno" class="btn-accion btn-terminar">
             ✅ Terminar Turno
           </button>

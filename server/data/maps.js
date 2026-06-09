@@ -355,7 +355,8 @@ const mision_prueba = {
   stairs: { entrada: { x: 0, y: 7 } },
   monsters: [
     { uid: 'mtest_goblin', type: 'orco', x: 5, y: 3, roomId: 'sala_prueba',
-      pcActual: 1, esBoss: true, nombre: 'Goblin Guardián' }
+      pcActual: 1, esBoss: true, nombre: 'Goblin Guardián' },
+    { uid: 'mtest_gargola', type: 'gargola', x: 7, y: 4, roomId: 'sala_prueba' }
   ],
   specialPoints: [
     { id: 'sp_trampa', x: 2, y: 3, tipo: 'cofre_trampa',

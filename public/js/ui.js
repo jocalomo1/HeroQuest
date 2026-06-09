@@ -19,7 +19,6 @@ const _ROTACIONES_IDX = [
 function _resultadoAIdx(resultado) {
   if (resultado === 'calavera')      return [0,1,2][Math.floor(Math.random()*3)];
   if (resultado === 'escudo_blanco') return [3,4][Math.floor(Math.random()*2)];
-  if (resultado === 'casco')         return [3,4][Math.floor(Math.random()*2)];
   if (resultado === 'escudo_negro')  return 5;
   return 0;
 }
@@ -63,8 +62,10 @@ const UI = {
     div.className = `log-entrada ${tipo}`;
     div.textContent = `> ${mensaje}`;
     log.prepend(div);
-    // Limitar a 100 entradas
     while (log.children.length > 100) log.removeChild(log.lastChild);
+    // Con column-reverse, scrollTop=0 muestra los mensajes más nuevos
+    const contenedor = document.getElementById('log-juego');
+    if (contenedor) contenedor.scrollTop = 0;
   },
 
   // ── STATS DE HÉROE ──
@@ -438,17 +439,33 @@ const UI = {
     document.getElementById('mi-heroe-panel').classList.remove('oculto');
     document.getElementById('zargon-panel').classList.add('oculto');
     document.getElementById('acciones-turno').classList.remove('oculto');
+    document.getElementById('botones-heroe').classList.remove('oculto');
   },
 
   mostrarPanelZargon() {
     document.getElementById('zargon-panel').classList.remove('oculto');
     document.getElementById('mi-heroe-panel').classList.add('oculto');
     document.getElementById('acciones-turno').classList.remove('oculto');
+    document.getElementById('botones-heroe').classList.add('oculto');
   },
 
   habilitarAcciones(esMiTurno) {
     const btns = document.querySelectorAll('.btn-accion');
     btns.forEach(b => b.disabled = !esMiTurno);
+  },
+
+  // ── CONTADOR MOVIMIENTO ──
+  mostrarContadorMovimiento(pasos) {
+    const contador = document.getElementById('contador-movimiento');
+    const span = document.getElementById('pasos-restantes');
+    if (!contador || !span) return;
+    span.textContent = pasos;
+    contador.classList.remove('oculto');
+  },
+
+  ocultarContadorMovimiento() {
+    const contador = document.getElementById('contador-movimiento');
+    if (contador) contador.classList.add('oculto');
   },
 
   // ── TOOLTIP ──

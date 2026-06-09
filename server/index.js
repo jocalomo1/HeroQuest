@@ -183,49 +183,40 @@ io.on('connection', (socket) => {
     if (!jugador?.heroe?.vivo) return;
     if (jugador.heroe.efectos?.ya_movio) return socket.emit('error', { mensaje: 'Ya te moviste este turno.' });
 
+    const movActivo = jugador._movActivo;
+    if (!movActivo || movActivo.movRestante <= 0)
+      return socket.emit('error', { mensaje: 'Solicita movimiento primero.' });
+
+    // Validar que la casilla sea alcanzable con el movimiento guardado
+    const casillaObj = movActivo.casillas?.find(c => c.x === x && c.y === y);
+    if (!casillaObj) return socket.emit('error', { mensaje: 'No puedes mover a esa casilla.' });
+
     const heroe = jugador.heroe;
-    const tirada = engine.tirarDadosRojos(2);
-    let movMax = tirada.total;
+    const distUsada = casillaObj.distancia || 1;
 
-    // Coraza: solo 1 dado
-    const coraza = (heroe.armaduras || []).includes('coraza') || (heroe.artefactos || []).includes('coraza');
-    if (coraza) {
-      const t = engine.tirarDadosRojos(1);
-      movMax = t.total;
-    }
-
-    // Efecto Ráfaga
-    if (heroe.efectos?.doble_movimiento) {
-      movMax *= 2;
-      delete heroe.efectos.doble_movimiento;
-    }
-
-    // Calcular casillas alcanzables
-    const ocupadas = new Set();
-    Object.values(estado.jugadores).forEach(j => {
-      if (j.heroe?.vivo && j.id !== socket.id)
-        ocupadas.add(`${j.heroe.x},${j.heroe.y}`);
-    });
-    Object.values(estado.monstruos).forEach(m => {
-      if (m.vivo && m.revelado) ocupadas.add(`${m.x},${m.y}`);
-    });
-
-    const alcanzables = engine.calcularCasillasAlcanzables(
-      estado.mapa, heroe.x, heroe.y, movMax, ocupadas
-    );
-
-    const puedeIr = alcanzables.some(c => c.x === x && c.y === y);
-    if (!puedeIr) return socket.emit('error', { mensaje: 'No puedes mover a esa casilla.' });
-
-    // Mover
     heroe.x = x;
     heroe.y = y;
-    heroe.efectos.ya_movio = true;
+    movActivo.movRestante = Math.max(0, movActivo.movRestante - distUsada);
 
     estado.log.push({ tipo: 'movimiento', mensaje: `${jugador.nombre} se mueve a (${x}, ${y}).` });
 
-    // Verificar si abrió una puerta al entrar en pasillo adyacente
-    // (se maneja con el evento abrir_puerta)
+    // Activar trampa si pisó una casilla con trampa no desactivada
+    const trampaEnCasilla = (estado.mapa.specialPoints || []).find(
+      sp => sp.x === x && sp.y === y &&
+            (sp.tipo === 'cofre_trampa' || sp.tipo === 'trampa') &&
+            !sp.data?.usada
+    );
+    if (trampaEnCasilla) {
+      trampaEnCasilla.revelada = true;
+      trampaEnCasilla.data.usada = true;
+      const dano = trampaEnCasilla.data.dano || 1;
+      heroe.cuerpoActual = Math.max(0, heroe.cuerpoActual - dano);
+      if (heroe.cuerpoActual <= 0) { heroe.cuerpoActual = 0; heroe.vivo = false; }
+      const msgTrampa = `¡${jugador.nombre} activa una trampa! -${dano} PC.`;
+      estado.log.push({ tipo: 'trampa', mensaje: msgTrampa });
+      io.to(codigo).emit('log_mensaje', { mensaje: msgTrampa, tipo: 'peligro' });
+      socket.emit('resultado_trampa', { exito: false, dano, trampa: trampaEnCasilla.data });
+    }
 
     // Revelar sala si llegó a una nueva habitación
     const salaId = engine.obtenerSalaDesCasilla(estado.mapa, x, y);
@@ -238,6 +229,26 @@ io.on('connection', (socket) => {
     }
 
     emitirEstadoASala(codigo);
+
+    if (movActivo.movRestante > 0) {
+      // Recalcular desde nueva posición con movimiento restante
+      const { ocupadas, bloqueantes } = _buildMovSets(estado, socket.id);
+      const nuevasCasillas = engine.calcularCasillasAlcanzables(
+        estado.mapa, heroe.x, heroe.y, movActivo.movRestante, ocupadas, bloqueantes,
+        { atravesarParedes: !!movActivo.atravesarParedes }
+      );
+      movActivo.casillas = nuevasCasillas;
+      socket.emit('casillas_alcanzables', {
+        casillas: nuevasCasillas,
+        movMax: movActivo.movRestante,
+        tirada: [movActivo.movRestante],
+        continuo: true
+      });
+    } else {
+      heroe.efectos.ya_movio = true;
+      jugador._movActivo = null;
+      socket.emit('movimiento_agotado');
+    }
   });
 
   // ── SOLICITAR CASILLAS ALCANZABLES ──
@@ -251,25 +262,28 @@ io.on('connection', (socket) => {
     if (!jugador?.heroe?.vivo) return;
     if (jugador.heroe.efectos?.ya_movio) return socket.emit('casillas_alcanzables', { casillas: [] });
 
+    // Si ya hay movimiento activo con pasos restantes, re-emitir sin volver a tirar
+    if (jugador._movActivo?.movRestante > 0) {
+      const ma = jugador._movActivo;
+      return socket.emit('casillas_alcanzables', { casillas: ma.casillas, movMax: ma.movRestante, tirada: [ma.movRestante] });
+    }
+
     const heroe = jugador.heroe;
     const tirada = engine.tirarDadosRojos(2);
     let movMax = tirada.total;
 
     const coraza = (heroe.armaduras || []).includes('coraza');
     if (coraza) movMax = engine.tirarDadosRojos(1).total;
-    if (heroe.efectos?.doble_movimiento) movMax *= 2;
+    if (heroe.efectos?.doble_movimiento) {
+      movMax *= 2;
+      delete heroe.efectos.doble_movimiento;
+    }
 
-    const ocupadas = new Set();
-    Object.values(estado.jugadores).forEach(j => {
-      if (j.heroe?.vivo && j.id !== socket.id) ocupadas.add(`${j.heroe.x},${j.heroe.y}`);
-    });
-    Object.values(estado.monstruos).forEach(m => {
-      if (m.vivo && m.revelado) ocupadas.add(`${m.x},${m.y}`);
-    });
+    const { ocupadas, bloqueantes } = _buildMovSets(estado, socket.id);
+    const atravesarParedes = !!heroe.efectos?.atravesar_paredes;
+    const casillas = engine.calcularCasillasAlcanzables(estado.mapa, heroe.x, heroe.y, movMax, ocupadas, bloqueantes, { atravesarParedes });
 
-    const casillas = engine.calcularCasillasAlcanzables(estado.mapa, heroe.x, heroe.y, movMax, ocupadas);
-
-    jugador._movimientoSolicitado = { movMax, tirada };
+    jugador._movActivo = { movMax, movRestante: movMax, tirada, casillas, atravesarParedes };
     socket.emit('casillas_alcanzables', { casillas, movMax, tirada: tirada.resultados });
   });
 
@@ -279,6 +293,17 @@ io.on('connection', (socket) => {
     const estado = salas.get(codigo);
     if (!estado) return;
     if (!esTurnoDeJugador(estado, socket.id)) return socket.emit('error', { mensaje: 'No es tu turno.' });
+
+    const jugadorP = estado.jugadores[socket.id];
+    const heroeP = jugadorP?.heroe;
+    if (!heroeP?.vivo) return;
+
+    // El héroe debe estar adyacente a la puerta (distancia Manhattan = 1)
+    const puerta = estado.mapa.doors.find(d => d.id === puertaId);
+    if (!puerta) return socket.emit('error', { mensaje: 'Puerta no encontrada.' });
+    const dx = Math.abs(heroeP.x - puerta.x);
+    const dy = Math.abs(heroeP.y - puerta.y);
+    if (dx + dy > 1) return socket.emit('error', { mensaje: 'Debes estar adyacente a la puerta para abrirla.' });
 
     const resultado = engine.revelarSalaAlAbrirPuerta(estado, puertaId, socket.id);
     if (!resultado) return;
@@ -291,6 +316,24 @@ io.on('connection', (socket) => {
     }
 
     emitirEstadoASala(codigo);
+
+    // Abrir puerta NO gasta movimiento: re-emitir casillas si hay movimiento pendiente
+    const movActivo = jugador._movActivo;
+    if (movActivo?.movRestante > 0) {
+      const heroe = jugador.heroe;
+      const { ocupadas, bloqueantes } = _buildMovSets(estado, socket.id);
+      const nuevasCasillas = engine.calcularCasillasAlcanzables(
+        estado.mapa, heroe.x, heroe.y, movActivo.movRestante, ocupadas, bloqueantes,
+        { atravesarParedes: !!movActivo.atravesarParedes }
+      );
+      movActivo.casillas = nuevasCasillas;
+      socket.emit('casillas_alcanzables', {
+        casillas: nuevasCasillas,
+        movMax: movActivo.movRestante,
+        tirada: [movActivo.movRestante],
+        continuo: true
+      });
+    }
   });
 
   // ── ATACAR MONSTRUO ──
@@ -305,6 +348,9 @@ io.on('connection', (socket) => {
     if (jugador.heroe.efectos?.ya_ataco) return socket.emit('error', { mensaje: 'Ya atacaste este turno.' });
 
     const heroe = jugador.heroe;
+    // Si movió parcialmente, forfeitea el movimiento restante (eligió atacar en vez de seguir moviendo)
+    _forfeitMovimiento(jugador, heroe, socket);
+
     const monstruo = estado.monstruos[monstruoUid];
     if (!monstruo?.vivo) return socket.emit('error', { mensaje: 'El monstruo no existe o ya está muerto.' });
 
@@ -332,8 +378,7 @@ io.on('connection', (socket) => {
     monstruo.pcActual -= resultado.danoFinal;
 
     heroe.efectos.ya_ataco = true;
-    // Limpiar Valentía si usó el ataque
-    delete heroe.efectos.valentia;
+    // No se cierra el movimiento: el héroe puede moverse después de atacar si aún no movió
     delete heroe.efectos.pocion_fuerza;
 
     const muerto = monstruo.pcActual <= 0;
@@ -418,17 +463,18 @@ io.on('connection', (socket) => {
     if (monstruo.efectos?.dormido || monstruo.efectos?.paralizado) return socket.emit('error', { mensaje: 'El monstruo no puede moverse.' });
     if (monstruo.yaMovioEsteTurno) return socket.emit('error', { mensaje: `${monstruo.nombre} ya se movió este turno.` });
 
-    // Validar movimiento (BFS simple)
-    const ocupadas = new Set();
+    // Héroes bloquean el paso; otros monstruos se pueden atravesar (no detenerse)
+    const ocupadasM = new Set();
+    const bloqueantes = new Set();
     Object.values(estado.jugadores).forEach(j => {
-      if (j.heroe?.vivo) ocupadas.add(`${j.heroe.x},${j.heroe.y}`);
+      if (j.heroe?.vivo) bloqueantes.add(`${j.heroe.x},${j.heroe.y}`);
     });
     Object.values(estado.monstruos).forEach(m => {
-      if (m.vivo && m.uid !== monstruoUid) ocupadas.add(`${m.x},${m.y}`);
+      if (m.vivo && m.uid !== monstruoUid) ocupadasM.add(`${m.x},${m.y}`);
     });
 
     const alcanzables = engine.calcularCasillasAlcanzables(
-      estado.mapa, monstruo.x, monstruo.y, monstruo.movimiento, ocupadas
+      estado.mapa, monstruo.x, monstruo.y, monstruo.movimiento, ocupadasM, bloqueantes
     );
 
     const puedeIr = alcanzables.some(c => c.x === x && c.y === y);
@@ -457,9 +503,12 @@ io.on('connection', (socket) => {
     if (!jugador?.heroe?.vivo) return;
     const heroe = jugador.heroe;
 
+    if (heroe.efectos?.ya_ataco) return socket.emit('error', { mensaje: 'Ya usaste tu acción este turno.' });
+    _forfeitMovimiento(jugador, heroe, socket);
+
     // Solo en habitaciones (no pasillos)
     const salaId = engine.obtenerSalaDesCasilla(estado.mapa, heroe.x, heroe.y);
-    if (!salaId) return socket.emit('error', { mensaje: 'Debes estar en una habitación para buscar.' });
+    if (!salaId) return socket.emit('error', { mensaje: 'Debes estar dentro de una habitación para buscar.' });
     const sala = estado.mapa.rooms[salaId];
     if (sala?.pasillo) return socket.emit('error', { mensaje: 'No se puede buscar en pasillos, solo en habitaciones.' });
 
@@ -472,15 +521,18 @@ io.on('connection', (socket) => {
     const monstruosEnSala = Object.values(estado.monstruos).filter(
       m => m.vivo && m.roomId === salaId
     );
-    if (monstruosEnSala.length > 0) return socket.emit('error', { mensaje: 'Hay monstruos en la habitación.' });
+    if (monstruosEnSala.length > 0) return socket.emit('error', { mensaje: 'Hay monstruos en la habitación. Derrotalos primero.' });
 
-    // Verificar tesoros especiales
+    // Verificar tesoros especiales (excluir trampas — esas se buscan con buscar_trampas)
     const tesoro = estado.mapa.specialPoints?.find(
-      sp => sp.data?.usada === false && engine.obtenerSalaDesCasilla(estado.mapa, sp.x, sp.y) === salaId
+      sp => sp.data?.usada === false &&
+            sp.tipo === 'tesoro_especial' &&
+            engine.obtenerSalaDesCasilla(estado.mapa, sp.x, sp.y) === salaId
     );
 
-    // Marcar sala como explorada (persistente, no se borra al terminar turno)
+    // Marcar sala como explorada y acción usada
     heroe.salasExploradas.push(salaId);
+    heroe.efectos.ya_ataco = true;
 
     if (tesoro) {
       tesoro.data.usada = true;
@@ -525,10 +577,47 @@ io.on('connection', (socket) => {
     if (!esTurnoDeJugador(estado, socket.id)) return socket.emit('error', { mensaje: 'No es tu turno.' });
 
     const jugador = estado.jugadores[socket.id];
-    // Zargon debe revelar si hay trampa visible
-    socket.emit('buscar_trampas_resultado', { mensaje: 'Has buscado trampas. Zargon indicará si encuentras algo.' });
-    io.to(codigo).emit('log_mensaje', { mensaje: `${jugador.nombre} busca trampas.`, tipo: 'accion' });
-    // Zargon puede responder con 'revelar_trampa'
+    const heroe = jugador?.heroe;
+    if (!heroe?.vivo) return;
+
+    if (heroe.efectos?.ya_ataco) return socket.emit('error', { mensaje: 'Ya usaste tu acción este turno.' });
+    _forfeitMovimiento(jugador, heroe, socket);
+
+    // Debe estar dentro de una habitación (el Enano también puede buscar en pasillos)
+    const salaId = engine.obtenerSalaDesCasilla(estado.mapa, heroe.x, heroe.y);
+    if (!salaId) return socket.emit('error', { mensaje: 'Debes estar dentro de una habitación o pasillo para buscar trampas.' });
+    const sala = estado.mapa.rooms[salaId];
+    if (sala?.pasillo && heroe.tipo !== 'enano')
+      return socket.emit('error', { mensaje: 'Solo el Enano puede buscar trampas en pasillos.' });
+
+    // No puede buscar si hay monstruos en la sala
+    const monstruosEnSala = Object.values(estado.monstruos).filter(m => m.vivo && m.roomId === salaId);
+    if (monstruosEnSala.length > 0) return socket.emit('error', { mensaje: 'Hay monstruos en la habitación. Derrotalos primero.' });
+
+    // Solo una vez por sala
+    if (!heroe.salasTrampas) heroe.salasTrampas = [];
+    if (heroe.salasTrampas.includes(salaId))
+      return socket.emit('error', { mensaje: 'Ya buscaste trampas en esta habitación.' });
+
+    heroe.salasTrampas.push(salaId);
+    heroe.efectos.ya_ataco = true;
+
+    // Revelar trampas en la sala
+    const trampasEnSala = (estado.mapa.specialPoints || []).filter(sp => {
+      const spSala = engine.obtenerSalaDesCasilla(estado.mapa, sp.x, sp.y);
+      return spSala === salaId && !sp.data?.usada && (sp.tipo === 'cofre_trampa' || sp.tipo === 'trampa');
+    });
+
+    trampasEnSala.forEach(sp => { sp.revelada = true; });
+
+    const msg = trampasEnSala.length > 0
+      ? `${jugador.nombre} encuentra ${trampasEnSala.length} trampa(s) en la habitación.`
+      : `${jugador.nombre} busca trampas pero no encuentra nada.`;
+
+    estado.log.push({ tipo: 'trampa', mensaje: msg });
+    io.to(codigo).emit('log_mensaje', { mensaje: msg, tipo: trampasEnSala.length > 0 ? 'peligro' : 'info' });
+
+    emitirEstadoASala(codigo);
   });
 
   // ── DESACTIVAR TRAMPA ──
@@ -536,27 +625,51 @@ io.on('connection', (socket) => {
     const codigo = socket.codigoSala;
     const estado = salas.get(codigo);
     if (!estado) return;
+    if (!esTurnoDeJugador(estado, socket.id)) return socket.emit('error', { mensaje: 'No es tu turno.' });
 
     const jugador = estado.jugadores[socket.id];
     const heroe = jugador?.heroe;
-    if (!heroe) return;
+    if (!heroe?.vivo) return;
+    if (heroe.efectos?.ya_ataco) return socket.emit('error', { mensaje: 'Ya usaste tu acción este turno.' });
 
-    const tieneHerramientas = heroe.inventario.some(i => i.id === 'herramientas') ||
-                              heroe.artefactos?.includes('herramientas');
+    // Buscar la trampa revelada en la misma sala del héroe
+    const salaHeroe = engine.obtenerSalaDesCasilla(estado.mapa, heroe.x, heroe.y);
+    const trampa = (estado.mapa.specialPoints || []).find(sp => {
+      if (trampaId && sp.id !== trampaId) return false;
+      if (sp.data?.usada || !sp.revelada) return false;
+      if (sp.tipo !== 'cofre_trampa' && sp.tipo !== 'trampa') return false;
+      const spSala = engine.obtenerSalaDesCasilla(estado.mapa, sp.x, sp.y);
+      return spSala === salaHeroe;
+    });
 
-    const resultado = engine.intentarDesactivarTrampa(heroe, tieneHerramientas);
+    if (!trampa) return socket.emit('error', { mensaje: 'No hay trampas reveladas en tu habitación para desactivar.' });
 
-    if (!resultado.exito && resultado.dano > 0) {
+    let resultado;
+    if (heroe.tipo === 'enano') {
+      // El Enano desactiva trampas automáticamente, sin dados y sin riesgo
+      resultado = { exito: true, dano: 0 };
+    } else {
+      const tieneHerramientas = heroe.inventario.some(i => i.id === 'herramientas') ||
+                                heroe.artefactos?.includes('herramientas');
+      resultado = engine.intentarDesactivarTrampa(heroe, tieneHerramientas);
+    }
+
+    if (resultado.exito) {
+      trampa.data.usada = true; // Trampa desactivada, desaparece del tablero
+    } else if (resultado.dano > 0) {
       heroe.cuerpoActual -= resultado.dano;
       if (heroe.cuerpoActual <= 0) { heroe.cuerpoActual = 0; heroe.vivo = false; }
     }
 
-    estado.log.push({
-      tipo: 'trampa',
-      mensaje: resultado.exito
-        ? `${jugador.nombre} desactiva la trampa con éxito.`
-        : `${jugador.nombre} falla al desactivar la trampa. -1 PC.`
-    });
+    heroe.efectos.ya_ataco = true;
+    _forfeitMovimiento(jugador, heroe, socket);
+
+    const msg = resultado.exito
+      ? `${jugador.nombre} desactiva la trampa${heroe.tipo === 'enano' ? ' (Habilidad de Enano)' : ''}.`
+      : `${jugador.nombre} falla al desactivar la trampa. -${resultado.dano} PC.`;
+
+    estado.log.push({ tipo: 'trampa', mensaje: msg });
+    io.to(codigo).emit('log_mensaje', { mensaje: msg, tipo: resultado.exito ? 'curacion' : 'peligro' });
 
     socket.emit('resultado_trampa', resultado);
     emitirEstadoASala(codigo);
@@ -575,6 +688,9 @@ io.on('connection', (socket) => {
 
     if (!heroe.hechizosDisponibles.includes(hechizoId))
       return socket.emit('error', { mensaje: 'No tienes ese hechizo disponible.' });
+    if (heroe.efectos?.ya_ataco) return socket.emit('error', { mensaje: 'Ya usaste tu acción este turno.' });
+    // Forfeitear movimiento restante si eligió lanzar hechizo en vez de seguir moviendo
+    _forfeitMovimiento(jugador, heroe, socket);
 
     const resultado = aplicarHechizoPJ(estado, socket.id, hechizoId, objetivoId, objetivoTipo, codigo);
     if (resultado.error) return socket.emit('error', { mensaje: resultado.error });
@@ -649,8 +765,10 @@ io.on('connection', (socket) => {
       delete jugador.heroe.efectos.ya_movio;
       delete jugador.heroe.efectos.ya_ataco;
       delete jugador.heroe.efectos.ya_uso_hechizo;
+      delete jugador.heroe.efectos.atravesar_paredes;
       // ya_busco NO se borra — se usa salasExploradas que persiste toda la misión
     }
+    jugador._movActivo = null;
 
     // Si es Zargon, resetear flags de movimiento de monstruos
     if (jugador?.rol === 'zargon') {
@@ -796,16 +914,17 @@ io.on('connection', (socket) => {
     const m = estado.monstruos[monstruoUid];
     if (!m?.vivo) return;
 
-    const ocupadas = new Set();
+    const ocupadasM2 = new Set();
+    const bloqueantesM = new Set();
     Object.values(estado.jugadores).forEach(j => {
-      if (j.heroe?.vivo) ocupadas.add(`${j.heroe.x},${j.heroe.y}`);
+      if (j.heroe?.vivo) bloqueantesM.add(`${j.heroe.x},${j.heroe.y}`);
     });
     Object.values(estado.monstruos).forEach(mon => {
-      if (mon.vivo && mon.uid !== monstruoUid) ocupadas.add(`${mon.x},${mon.y}`);
+      if (mon.vivo && mon.uid !== monstruoUid) ocupadasM2.add(`${mon.x},${mon.y}`);
     });
 
     const casillas = engine.calcularCasillasAlcanzables(
-      estado.mapa, m.x, m.y, m.movimiento, ocupadas
+      estado.mapa, m.x, m.y, m.movimiento, ocupadasM2, bloqueantesM
     );
     socket.emit('casillas_monstruo', { monstruoUid, casillas });
   });
@@ -848,6 +967,29 @@ io.on('connection', (socket) => {
 // ─────────────────────────────────────────
 // FUNCIONES AUXILIARES
 // ─────────────────────────────────────────
+
+// Construye los conjuntos de aliados (pasables) y bloqueantes (enemigos) para un héroe
+// Si el héroe atacó/buscó con movimiento pendiente, forfeitea los pasos restantes
+function _forfeitMovimiento(jugador, heroe, socket) {
+  if (jugador._movActivo?.movRestante > 0) {
+    heroe.efectos.ya_movio = true;
+    delete heroe.efectos.atravesar_paredes;
+    jugador._movActivo = null;
+    socket.emit('movimiento_agotado');
+  }
+}
+
+function _buildMovSets(estado, socketId) {
+  const ocupadas = new Set();   // otros héroes — puede pasar, no detenerse
+  const bloqueantes = new Set(); // monstruos vivos — bloquean completamente
+  Object.values(estado.jugadores).forEach(j => {
+    if (j.heroe?.vivo && j.id !== socketId) ocupadas.add(`${j.heroe.x},${j.heroe.y}`);
+  });
+  Object.values(estado.monstruos).forEach(m => {
+    if (m.vivo && m.revelado && !m.esAliado) bloqueantes.add(`${m.x},${m.y}`);
+  });
+  return { ocupadas, bloqueantes };
+}
 
 function esTurnoDeJugador(estado, socketId) {
   const { turno } = estado;

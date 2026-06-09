@@ -134,6 +134,33 @@ class Tablero {
       this.casillaHover = { x, y };
       this.renderizar();
     }
+
+    // Tooltip de identificación al pasar sobre monstruo o héroe
+    const rect = this.canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    const monstruo = Object.values(this.monstruos).find(m => m.vivo && m.x === x && m.y === y);
+    if (monstruo) {
+      UI.mostrarTooltip(px, py,
+        `<strong>${monstruo.nombre}</strong><br>` +
+        `PC: ${monstruo.pcActual}/${monstruo.pcMax || monstruo.cuerpo || '?'} ` +
+        `| ATQ: ${monstruo.ataque} | DEF: ${monstruo.defensa}`
+      );
+      return;
+    }
+
+    const heroeEntry = Object.entries(this.jugadores).find(([, j]) => j.heroe?.x === x && j.heroe?.y === y);
+    if (heroeEntry) {
+      const h = heroeEntry[1].heroe;
+      UI.mostrarTooltip(px, py,
+        `<strong>${h.nombre}</strong><br>` +
+        `PC: ${h.cuerpoActual}/${h.cuerpoMax} | PM: ${h.menteActual}/${h.menteMax}`
+      );
+      return;
+    }
+
+    UI.ocultarTooltip();
   }
 
   _onClick(e) {
@@ -372,6 +399,8 @@ class Tablero {
 
   _dibujarPuntoEspecial(sp, ts) {
     if (sp.data?.usada) return;
+    // Héroes solo ven puntos que Zargon reveló (búsqueda de trampas)
+    if (!this.esZargon && !sp.revelada) return;
     const ctx = this.ctx;
     const px = this.offsetX + sp.x * ts;
     const py = this.offsetY + sp.y * ts;

@@ -52,7 +52,9 @@ function configurarEventosTablero() {
   tablero.onCasillaClick = (x, y) => {
     if (modoAccion === 'mover') {
       socket.emit('mover_heroe', { x, y });
-      limpiarModo();
+      // No llamar limpiarModo() aquí: el servidor responde con
+      // 'casillas_alcanzables' (si hay movimiento restante) o
+      // 'movimiento_agotado' (si se agotó) para decidir cuándo terminar
     } else if (modoAccion === 'mover_monstruo' && monstruoSeleccionado) {
       socket.emit('mover_monstruo', { monstruoUid: monstruoSeleccionado, x, y });
       limpiarModo();
@@ -97,10 +99,15 @@ function configurarEventosTablero() {
 // ─────────────────────────────────────────
 function configurarBotones() {
   document.getElementById('btn-mover').addEventListener('click', () => {
-    if (!esMiTurno()) return;
-    if (esZargon()) return;
+    if (!esMiTurno() || esZargon()) return;
     modoAccion = 'mover';
     socket.emit('solicitar_movimiento');
+  });
+
+  document.getElementById('btn-atacar').addEventListener('click', () => {
+    if (!esMiTurno() || esZargon()) return;
+    modoAccion = 'atacar';
+    UI.agregarLog('Selecciona el monstruo a atacar.', 'info');
   });
 
   document.getElementById('btn-buscar-tesoros').addEventListener('click', () => {
@@ -111,6 +118,11 @@ function configurarBotones() {
   document.getElementById('btn-buscar-trampas').addEventListener('click', () => {
     if (!esMiTurno() || esZargon()) return;
     socket.emit('buscar_trampas');
+  });
+
+  document.getElementById('btn-desactivar-trampa').addEventListener('click', () => {
+    if (!esMiTurno() || esZargon()) return;
+    socket.emit('desactivar_trampa', {});
   });
 
   document.getElementById('btn-terminar-turno').addEventListener('click', () => {
@@ -197,25 +209,17 @@ socket.on('estado_actualizado', (estado) => {
     UI.actualizarPanelZargon(estado.monstruos, estado.hechizosZargon);
   } else {
     UI.mostrarPanelHeroe();
-    // Buscar mi héroe
-    const miJugador = estado.jugadores?.[window.miSocketId];
-    if (miJugador?.heroe) {
-      UI.actualizarStatsHeroe(miJugador.heroe);
+    // miHeroe contiene el héroe completo del jugador local
+    if (estado.miHeroe) {
+      UI.actualizarStatsHeroe(estado.miHeroe);
+      if (esMiTurno()) actualizarBotonesHeroe(estado.miHeroe);
     }
   }
 
   UI.actualizarPanelHeroes(estado.jugadores, window.turnoActualId);
 
   // Habilitar acciones según turno
-  const esMio = esMiTurno();
-  UI.habilitarAcciones(esMio);
-
-  // Actualizar log
-  if (estado.log) {
-    estado.log.forEach(entry => {
-      // No duplicar si ya está en el DOM
-    });
-  }
+  UI.habilitarAcciones(esMiTurno());
 });
 
 socket.on('log_mensaje', ({ mensaje, tipo }) => {
@@ -238,10 +242,26 @@ socket.on('nuevo_turno', ({ jugadorId, nombre, rol, numeroTurno }) => {
   limpiarModo();
 });
 
-socket.on('casillas_alcanzables', ({ casillas, movMax, tirada }) => {
+socket.on('casillas_alcanzables', ({ casillas, movMax, tirada, continuo }) => {
   tablero.setCasillasAlcanzables(casillas);
-  if (tirada?.length) UI.mostrarDadosMovimiento(tirada, movMax);
-  UI.agregarLog(`Movimiento: ${tirada?.join('+')} = ${movMax} pasos`, 'info');
+  if (esMiTurno() && !esZargon()) modoAccion = 'mover';
+
+  // Deshabilitar botón mover y mostrar contador de pasos
+  const btnMover = document.getElementById('btn-mover');
+  if (btnMover) btnMover.disabled = true;
+  UI.mostrarContadorMovimiento(movMax);
+
+  if (!continuo && tirada?.length) {
+    UI.mostrarDadosMovimiento(tirada, movMax);
+    UI.agregarLog(`Movimiento: ${tirada.join('+')} = ${movMax} pasos`, 'info');
+  } else if (continuo) {
+    UI.agregarLog(`Movimiento restante: ${movMax} pasos`, 'info');
+  }
+});
+
+socket.on('movimiento_agotado', () => {
+  UI.ocultarContadorMovimiento();
+  limpiarModo();
 });
 
 socket.on('resultado_ataque', ({ resultado, monstruoUid, muerto }) => {
@@ -365,6 +385,39 @@ socket.on('casillas_monstruo', ({ monstruoUid, casillas }) => {
 // ─────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────
+// Habilita/deshabilita botones según qué fases del turno ya usó el héroe.
+// Regla: MOVIMIENTO+ACCION o ACCION+MOVIMIENTO, nunca intercalados.
+function actualizarBotonesHeroe(heroe) {
+  const ef = heroe.efectos || {};
+  const yaMovio = !!ef.ya_movio;
+  const yaActuo = !!ef.ya_ataco;
+
+  const btnMover     = document.getElementById('btn-mover');
+  const btnAtacar    = document.getElementById('btn-atacar');
+  const btnTesoro    = document.getElementById('btn-buscar-tesoros');
+  const btnTrampa    = document.getElementById('btn-buscar-trampas');
+  const btnDesact    = document.getElementById('btn-desactivar-trampa');
+
+  if (btnMover)  btnMover.disabled  = yaMovio;
+  if (btnAtacar) btnAtacar.disabled  = yaActuo;
+  if (btnTesoro) btnTesoro.disabled  = yaActuo;
+  if (btnTrampa) btnTrampa.disabled  = yaActuo;
+
+  // Mostrar "Desactivar Trampa" si hay trampa revelada visible (servidor valida la sala)
+  if (btnDesact) {
+    const mapa = estadoActual?.mapa;
+    const hayTrampaRevelada = (mapa?.specialPoints || []).some(
+      sp => sp.revelada && !sp.data?.usada && (sp.tipo === 'cofre_trampa' || sp.tipo === 'trampa')
+    );
+    if (hayTrampaRevelada && !yaActuo) {
+      btnDesact.classList.remove('oculto');
+      btnDesact.disabled = false;
+    } else {
+      btnDesact.classList.add('oculto');
+    }
+  }
+}
+
 function esMiTurno() {
   return window.turnoActualId === window.miSocketId;
 }
@@ -388,6 +441,7 @@ function limpiarModo() {
   monstruoSeleccionado = null;
   tablero.setCasillasAlcanzables([]);
   tablero.setCasillasAtacables([]);
+  UI.ocultarContadorMovimiento();
   tablero.canvas.className = '';
 }
 

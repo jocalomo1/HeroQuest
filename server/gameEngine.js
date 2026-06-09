@@ -7,28 +7,27 @@ const { EQUIPO, ARTEFACTOS, CARTAS_TESORO } = require('./data/items');
 // ─────────────────────────────────────────
 // DADOS
 // ─────────────────────────────────────────
-// Dado rojo: 1-6
-// Dado blanco de combate: cara1=calavera, cara2=calavera, cara3=escudo_negro, cara4=escudo_blanco, cara5=escudo_blanco, cara6=casco
-// Dado negro de defensa: cara1=calavera, cara2=calavera, cara3=escudo_negro, cara4=escudo_negro, cara5=escudo_negro, cara6=escudo_negro
+// Dado rojo: 1-6 (movimiento)
+// Dado de combate (azul o rojo, mismas caras físicas):
+//   cara1=calavera, cara2=calavera, cara3=calavera  → 3/6 calaveras
+//   cara4=escudo_blanco, cara5=escudo_blanco        → 2/6 escudos blancos
+//   cara6=escudo_negro                              → 1/6 escudo negro
+// Bloqueo: héroe defiende con escudo_blanco, monstruo defiende con escudo_negro
 
 function tirarDadoRojo() {
   return Math.ceil(Math.random() * 6);
 }
 
-// Dado blanco: 2/6 calavera, 3/6 escudo (1=blanco, 2=negro), 1/6 casco (nada)
-function tirarDadoBlanco() {
+function tirarDadoCombate() {
   const r = Math.ceil(Math.random() * 6);
-  if (r <= 2) return 'calavera';
+  if (r <= 3) return 'calavera';
   if (r <= 5) return 'escudo_blanco';
-  return 'casco';
-}
-
-// Dado negro: 2/6 calavera, 4/6 escudo negro
-function tirarDadoNegro() {
-  const r = Math.ceil(Math.random() * 6);
-  if (r <= 2) return 'calavera';
   return 'escudo_negro';
 }
+
+// Alias mantenidos para no romper las llamadas existentes
+function tirarDadoBlanco() { return tirarDadoCombate(); }
+function tirarDadoNegro()  { return tirarDadoCombate(); }
 
 function tirarDadosRojos(n) {
   let total = 0;
@@ -218,8 +217,13 @@ function obtenerPuertaEn(mapa, x, y) {
 }
 
 // BFS para movimiento (sin diagonal, respeta puertas cerradas)
-function calcularCasillasAlcanzables(mapa, startX, startY, movMax, ocupadas) {
-  const alcanzables = new Set();
+// ocupadas    = aliados (puede pasar por encima, no detenerse)
+// bloqueantes = enemigos (bloquean completamente el paso)
+// opciones.atravesarParedes = true → muros (tipo 0) se pueden cruzar pero no detenerse
+// Retorna { x, y, distancia } para cada casilla alcanzable
+function calcularCasillasAlcanzables(mapa, startX, startY, movMax, ocupadas, bloqueantes = new Set(), opciones = {}) {
+  const atravesarParedes = !!opciones.atravesarParedes;
+  const distancias = new Map();
   const visitados = new Map();
   const cola = [{ x: startX, y: startY, pasos: 0 }];
   visitados.set(`${startX},${startY}`, 0);
@@ -228,7 +232,6 @@ function calcularCasillasAlcanzables(mapa, startX, startY, movMax, ocupadas) {
 
   while (cola.length > 0) {
     const { x, y, pasos } = cola.shift();
-    if (pasos > 0) alcanzables.add(`${x},${y}`);
 
     if (pasos >= movMax) continue;
 
@@ -239,31 +242,39 @@ function calcularCasillasAlcanzables(mapa, startX, startY, movMax, ocupadas) {
 
       if (visitados.has(key) && visitados.get(key) <= pasos + 1) continue;
 
-      if (!esCasillaTransitable(mapa, nx, ny)) continue;
-
-      // Verificar si hay puerta cerrada en el camino
-      if (esPuerta(mapa, nx, ny)) {
-        const puerta = obtenerPuertaEn(mapa, nx, ny);
-        if (puerta && !puerta.open) continue; // Puerta cerrada = bloqueada
+      if (!esCasillaTransitable(mapa, nx, ny)) {
+        // Con atravesarParedes: muros (tipo 0) se cruzan pero no se pisa
+        if (atravesarParedes && mapa.grid[ny]?.[nx] === 0) {
+          visitados.set(key, pasos + 1);
+          cola.push({ x: nx, y: ny, pasos: pasos + 1 });
+        }
+        continue;
       }
 
-      // No puede terminar en casilla ocupada por héroe/monstruo
+      if (esPuerta(mapa, nx, ny)) {
+        const puerta = obtenerPuertaEn(mapa, nx, ny);
+        if (puerta && !puerta.open) continue;
+      }
+
+      // Enemigos bloquean completamente el paso
+      if (bloqueantes.has(key)) continue;
+
+      visitados.set(key, pasos + 1);
+
+      // Aliados: se puede pasar pero no detenerse
       if (ocupadas.has(key)) {
-        // Puede pasar por casillas de héroes pero no terminar
-        visitados.set(key, pasos + 1);
         cola.push({ x: nx, y: ny, pasos: pasos + 1 });
         continue;
       }
 
-      visitados.set(key, pasos + 1);
-      alcanzables.add(key);
+      if (!distancias.has(key)) distancias.set(key, pasos + 1);
       cola.push({ x: nx, y: ny, pasos: pasos + 1 });
     }
   }
 
-  return [...alcanzables].map(k => {
+  return [...distancias.entries()].map(([k, d]) => {
     const [x, y] = k.split(',').map(Number);
-    return { x, y };
+    return { x, y, distancia: d };
   });
 }
 
@@ -491,7 +502,11 @@ function filtrarMapaParaHeroe(mapa, salasVisibles) {
     ...mapa,
     grid: gridFiltrado,
     rooms: roomsFiltrados,
-    doors: puertasVisibles
+    doors: puertasVisibles,
+    // Héroes solo ven trampas que ya han sido reveladas por búsqueda
+    specialPoints: (mapa.specialPoints || []).filter(sp =>
+      sp.revelada === true && celdasVisibles.has(`${sp.x},${sp.y}`)
+    )
   };
 }
 
@@ -509,6 +524,7 @@ function sanitizarJugadores(jugadores) {
         cuerpoActual: j.heroe.cuerpoActual,
         cuerpoMax: j.heroe.cuerpoMax,
         menteActual: j.heroe.menteActual,
+        menteMax: j.heroe.menteMax,
         x: j.heroe.x,
         y: j.heroe.y,
         vivo: j.heroe.vivo
@@ -603,11 +619,10 @@ function avanzarTurno(estado) {
   if (turno.turnoActual >= turno.orden.length) {
     turno.turnoActual = 0;
     turno.numero++;
-    // Inicio de turno: limpiar algunos efectos temporales
+    // Inicio de ronda: limpiar efectos de un solo turno
     turno.orden.forEach(id => {
       const j = estado.jugadores[id];
       if (j?.heroe) {
-        // Efecto Valentía se limpia si no hay monstruos visibles
         delete j.heroe.efectos.pocion_fuerza;
         delete j.heroe.efectos.pocion_defensa;
       }
@@ -618,6 +633,13 @@ function avanzarTurno(estado) {
   const siguienteId = turno.orden[turno.turnoActual];
   const siguiente = estado.jugadores[siguienteId];
   turno.fase = siguiente?.rol === 'zargon' ? 'zargon' : 'heroe';
+
+  // Valentía: se mantiene mientras haya monstruos vivos y revelados visibles.
+  // Se comprueba al inicio del turno de cada héroe.
+  if (turno.fase === 'heroe' && siguiente?.heroe?.efectos?.valentia) {
+    const hayEnemigos = Object.values(estado.monstruos).some(m => m.vivo && m.revelado);
+    if (!hayEnemigos) delete siguiente.heroe.efectos.valentia;
+  }
 
   // Limpiar efectos de saltar turno del jugador que acaba de terminar
   const jugadorActual = estado.jugadores[turno.orden[turno.turnoActual]];
