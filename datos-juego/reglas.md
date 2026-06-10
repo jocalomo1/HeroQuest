@@ -1,12 +1,14 @@
 # Reglas Completas HeroQuest
 
 ## HÉROES - Stats iniciales
-| Héroe | Ataque | Defensa | Cuerpo | Mente | Arma inicial |
+| Héroe | Defensa | Cuerpo | Mente | Arma inicial | Dados ataque inicial |
 |---|---|---|---|---|---|
-| Bárbaro / Bárbara | 3 | 2 | 8 | 2 | Espada Ancha |
-| Enano / Enana | 2 | 2 | 7 | 3 | Espada Corta |
-| Elfo / Elfa | 2 | 2 | 6 | 4 | Espada Corta |
-| Mago / Maga | 1 | 2 | 4 | 6 | Daga |
+| Bárbaro / Bárbara | 2 | 8 | 2 | Espada Ancha | 3 |
+| Enano / Enana | 2 | 7 | 3 | Espada Corta | 2 |
+| Elfo / Elfa | 2 | 6 | 4 | Espada Corta | 2 |
+| Mago / Maga | 2 | 4 | 6 | Daga | 1 |
+
+**IMPORTANTE:** Los dados de ataque del héroe son los del arma equipada, NO un stat base del héroe. Si el Bárbaro cambia Espada Ancha (3 dados) por Espada Corta (2 dados), pasa a pegar 2.
 
 Todos los héroes se mueven con 2 dados rojos. Armadura inicial: Ninguna.
 
@@ -32,7 +34,8 @@ Todos los héroes se mueven con 2 dados rojos. Armadura inicial: Ninguna.
 5. **Buscar Trampas** — sin monstruos visibles, declarar verbalmente
 6. **Desactivar Trampas** — necesita conocer ubicación + Conjunto de Herramientas (o ser Enano/Enana)
 
-**NO cuentan como acción:** caer en trampa, beber pociones, recoger objetos
+**NO cuentan como acción:** beber pociones, recoger objetos, abrir puerta (tampoco interrumpe el movimiento)
+**Caer en trampa:** termina el turno del héroe. Si busca tesoro ANTES de moverse y la carta es trampa o monstruo errante, también pierde el turno.
 
 ## MOVIMIENTO
 - No diagonal, no atravesar monstruos ni paredes
@@ -40,7 +43,8 @@ Todos los héroes se mueven con 2 dados rojos. Armadura inicial: Ninguna.
 - No compartir casilla con héroe o monstruo (excepto escalera o foso)
 - Solo entrar a habitaciones por puertas
 - Puertas: empiezan cerradas, una vez abiertas nunca se cierran
-- Mirar por un pasillo o abrir una puerta NO cuenta como acción
+- Mirar por un pasillo NO cuenta como acción
+- Abrir una puerta NO cuenta como acción NI interrumpe el movimiento
 
 ## COMBATE
 
@@ -104,8 +108,14 @@ Todos los héroes se mueven con 2 dados rojos. Armadura inicial: Ninguna.
 
 ## TURNO DE ZARGON (monstruos)
 - Mover (distancia fija, no dados) + atacar O lanzar hechizo de terror
-- NO pueden: buscar tesoros/puertas, moverse/atacar en diagonal, saltar héroes, atravesar paredes, abrir/cerrar puertas, compartir casilla
+- NO pueden: buscar tesoros/puertas, moverse/atacar en diagonal, saltar héroes, atravesar paredes, abrir puertas, compartir casilla
 - Los monstruos NO activan trampas ocultas
+
+## MONSTRUO ERRANTE
+- Aparece cuando un héroe saca la carta de Monstruo Errante al buscar tesoro
+- Se coloca en una casilla adyacente (no diagonal) al héroe que sacó la carta
+- Debe colocarse en posición donde pueda atacar a ese héroe
+- El tipo de monstruo errante varía según la misión (se especifica en cada una)
 
 ## BUSCAR TESOROS
 - Solo en habitaciones sin monstruos
@@ -113,6 +123,15 @@ Todos los héroes se mueven con 2 dados rojos. Armadura inicial: Ninguna.
 - Si no hay Tesoro Especial: sacar carta del mazo de tesoros
 - Cartas de oro/pociones NO regresan al mazo
 - Cartas de Peligro/Monstruo Errante SÍ regresan al mazo
+
+### Reglas de Tesoros Especiales (CT / Notas de tesoro)
+- Si la sala tiene un **Cofre de Tesoro (CT)** o un **elemento especial con nota de tesoro** (ej. armería):
+  - Solo el **primer héroe** que busque activa la nota
+  - Recibe exactamente lo que dice la nota (oro fijo, vacío, etc.)
+  - Ningún otro héroe puede buscar después — se agota al primer uso
+  - No se da carta de tesoro del mazo
+- Si la nota describe únicamente a un enemigo u otro elemento (no tesoro), **no restringe la búsqueda** — todos los héroes pueden buscar normalmente (1 carta cada uno)
+- En salas **sin CT ni nota de tesoro**: cada héroe puede buscar 1 vez (hasta 4 cartas por sala entre todos)
 
 ## MUERTE DE HÉROE
 - PC = 0 → muerto para el resto de la misión
